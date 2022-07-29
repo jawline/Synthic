@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+./scripts/build
+find "$1" -name "output.txt" -print0 | xargs -0 -I {} -P 16 ./scripts/convert_to_wav "{}" "$2"
