@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+./scripts/build
 rm -rf ./pruned/
 mkdir -p pruned/
 find "$1" -name "*" -print0 | xargs -0 -I {} ./prune "{}"
