@@ -4,10 +4,16 @@
 
 View `wav_samples/`.
 
+### Overview
 
 ### Usage
 
-cargo run --release -- --rom PATH
+#### Training data collection
 
-### Overview
+#### Data Pruning
 
+#### Model Training
+
+#### Music Sample Generation
+
+#### Converting recordings to WAV files
