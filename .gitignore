@@ -6,7 +6,5 @@
 *.scheduler
 *.optimizer
 
-*.wav
-
 mechanical_data/
 pruned/
