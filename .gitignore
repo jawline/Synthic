@@ -2,6 +2,9 @@ target/
 *.pyc
 .ipynb_checkpoints/*
 
+./output.txt
+./seed.txt
+
 *.model
 *.scheduler
 *.optimizer
