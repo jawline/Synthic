@@ -16,3 +16,4 @@ pub mod sdl;
 pub mod sound;
 pub mod terminal;
 pub mod util;
+pub mod encoded_file;
