@@ -1,9 +1,10 @@
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Type {
   Lsb {
     frequency: u8,
@@ -24,11 +25,48 @@ pub enum Type {
   },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Instruction {
   pub at: usize,
   pub channel: usize,
   pub type_: Type,
+}
+
+impl fmt::Display for Instruction {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    use Type::*;
+    match self.type_ {
+      Lsb { frequency } => write!(
+        f,
+        "CH {} FREQLSB {} AT {}",
+        self.channel, frequency, self.at
+      ),
+      Msb {
+        trigger,
+        length_enable,
+        frequency,
+      } => write!(
+        f,
+        "CH {} FREQMSB {} {} {} AT {}",
+        self.channel, frequency, length_enable, trigger, self.at
+      ),
+      Vol {
+        volume,
+        add,
+        period,
+      } => write!(
+        f,
+        "CH {} VOLENVPER {} {} {} AT {}",
+        self.channel, volume, add, period, self.at
+      ),
+      Duty { duty, length_load } => write!(
+        f,
+        "CH {} DUTYLL {} {} AT {}",
+        self.channel, duty, length_load, self.at
+      ),
+    }
+    //write!(f, "({}, {})", self.x, self.y)
+  }
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -100,7 +138,3 @@ pub fn parse_file(filename: &str) -> Result<Vec<Instruction>, Box<dyn Error>> {
   }
   Ok(res)
 }
-
-
-
-

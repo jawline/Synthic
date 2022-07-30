@@ -4,6 +4,7 @@ extern crate cpal;
 
 pub mod clock;
 pub mod cpu;
+pub mod encoded_file;
 pub mod frame_timer;
 pub mod headless;
 pub mod instruction;
@@ -16,4 +17,3 @@ pub mod sdl;
 pub mod sound;
 pub mod terminal;
 pub mod util;
-pub mod encoded_file;

@@ -7,11 +7,11 @@ use hound;
 
 use gb_int::clock::Clock;
 use gb_int::cpu::Cpu;
+use gb_int::encoded_file::*;
 use gb_int::machine::MachineState;
 use gb_int::memory::{GameboyState, RomChunk};
 use gb_int::ppu::Ppu;
-use gb_int::sound::{Sound};
-use gb_int::encoded_file::*;
+use gb_int::sound::Sound;
 
 /// This doc string acts as a help message when the user runs '--help'
 /// as do all doc strings on fields

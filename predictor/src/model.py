@@ -106,11 +106,11 @@ class AttentionBlock(nn.Module):
         self.v = nn.Linear(dim, dim)
         self.attn = LocalAttention(
             dim = dim,
-            window_size = 512,
+            window_size = 256,
             causal = True,
             look_backward = 1,
             look_forward = 0,
-            dropout = 0.1,
+            dropout = 0.0,
             autopad = True,
             exact_windowsize = False)
 
@@ -182,7 +182,7 @@ class GameboyNet(nn.Module):
     def __init__(self,
             dim=256,
             num_blocks=1,
-            layer_spec=["attention" for i in range(20)],
+            layer_spec=[item for sublist in [["attention" for i in range(40)]] for item in sublist],
             hfactor=4,
             layer_dropout=0.0,
             kernel_size=BYTES_PER_ENTRY*30,
@@ -282,7 +282,7 @@ def load_model(model, path, device):
     )
 
     # optimizer = optim.SGD ( model.parameters(), lr = 0.001 )
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.98, min_lr=0.0000000001, patience=1) 
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.95, min_lr=0.0000000001, patience=1) 
 
     model = model.to(device)
 
