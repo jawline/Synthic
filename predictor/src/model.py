@@ -18,9 +18,6 @@ from adaptive_warmup import Scheduler as AdaptiveWarmup
 Positional encoding steps encode information about where we are in a sequence of data into the data
 allowing a model to change how it responds to an input value based on where it occurs in a sequence
 of inputs.
-
-TODO: Currently there is no clear identifier for where we are in a piece of music so I don't think
-that PositionalEncoding should add anything to the model, but maybe I am misunderstanding it's usage
 """
 
 
