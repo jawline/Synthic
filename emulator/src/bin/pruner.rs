@@ -61,41 +61,24 @@ fn find_repeating_subsequence(cycles: &[Instruction]) -> Vec<Instruction> {
 fn main() -> Result<(), Box<dyn Error>> {
   env_logger::init();
   let opts: Opts = Opts::parse();
-  let instructions = parse_file(&opts.recording)?;
-
   let mut rng = thread_rng();
+  let instruction_chunks =
+    parse_file_into_chunks_where_buttons_are_not_being_pressed(&opts.recording)?;
 
-  for i in 0..4 {
-    let path = format!("{}/{}", opts.out, i);
-    println!("Writing next file to {}", path);
-    let mut file = File::create(path)?;
-    let limit = rng.gen_range(0..instructions.len());
-    for instruction in &instructions[limit..min(limit + 10000, instructions.len())] {
-      write!(file, "{}\n", instruction)?;
-    }
-  }
+  for (chunk_idx, chunk) in instruction_chunks.iter().enumerate() {
+    //let chunk = find_repeating_subsequence(chunk);
+    if chunk.len() > 500 {
+      let path = format!("{}/{}", opts.out, chunk_idx);
+      println!("Writing next file to {}", path);
+      let mut file = File::create(path)?;
+      let limit = rng.gen_range(0..chunk.len());
+      let chunk = &chunk[limit..min(limit + 50_000, chunk.len())];
 
-  /*
-  let mut locations: HashMap<Instruction, Vec<usize>> = HashMap::new();
-  let mut i = 0;
-  for instruction in &instructions {
-    if let Some(v) = locations.get_mut(instruction) {
-      v.push(i);
-    } else {
-      locations.insert(*instruction, vec![i]);
-    }
-    i = i + 1;
-  }
-
-  for (instruction, cycle_points) in locations.iter() {
-      println!("{}", cycle_points.len());
-    if cycle_points.len() > 3 && cycle_points.len() < 30_000 {
-      let longest_pattern = find_repeating_subsequence(&cycle_points);
-      if longest_pattern.len() > 0 {
-        println!("{:?}", longest_pattern);
+      for instruction in chunk {
+        write!(file, "{}\n", instruction)?;
       }
     }
-  } */
+  }
 
   Ok(())
 }

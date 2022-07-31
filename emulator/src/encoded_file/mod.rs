@@ -98,8 +98,10 @@ pub fn parse_file_into_chunks_where_buttons_are_not_being_pressed(
     println!("LINE: {}", line);
 
     if line == "PRESSING BUTTONS" {
-      chunks.push(res);
-      res = Vec::new();
+      if res.len() > 0 {
+        chunks.push(res);
+        res = Vec::new();
+      }
       observing = false;
     } else if line == "OBSERVING" {
       observing = true;
@@ -150,13 +152,19 @@ pub fn parse_file_into_chunks_where_buttons_are_not_being_pressed(
       }
     }
   }
+
+  if observing && res.len() > 0 {
+    // Finalize any in-progress chunk
+    chunks.push(res);
+  }
+
   Ok(chunks)
 }
 
 pub fn parse_file(filename: &str) -> Result<Vec<Instruction>, Box<dyn Error>> {
   let res = parse_file_into_chunks_where_buttons_are_not_being_pressed(filename)?;
 
-  if res.len() != 0 {
+  if res.len() != 1 {
     Err(format_err!("parse_file expected only one chunk"))?
   }
 

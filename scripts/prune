@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-timestamp=$(date +%s)
-mkdir -p "pruned/${timestamp}/"
-./emulator/target/release/pruner --recording "$1" --out "pruned/${timestamp}/"
+name=$(shasum "$1")
+mkdir -p "pruned/${name}/"
+./emulator/target/release/pruner --recording "$1" --out "pruned/${name}/"
