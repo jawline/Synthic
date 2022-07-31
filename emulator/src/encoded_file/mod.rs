@@ -95,7 +95,7 @@ pub fn parse_file_into_chunks_where_buttons_are_not_being_pressed(
   let mut observing = true;
   for line in lines {
     let line = line?;
-    println!("LINE: {}", line);
+    //println!("LINE: {}", line);
 
     if line == "PRESSING BUTTONS" {
       if res.len() > 0 {

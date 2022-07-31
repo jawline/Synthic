@@ -65,14 +65,15 @@ fn main() -> Result<(), Box<dyn Error>> {
   let instruction_chunks =
     parse_file_into_chunks_where_buttons_are_not_being_pressed(&opts.recording)?;
 
-  for (chunk_idx, chunk) in instruction_chunks.iter().enumerate() {
+  let step_by = max(instruction_chunks.iter().filter(|chunk| chunk.len() > 500).count() / 4, 1);
+  for (chunk_idx, chunk) in instruction_chunks.iter().filter(|chunk| chunk.len() > 500).step_by(step_by).take(4).enumerate() {
     //let chunk = find_repeating_subsequence(chunk);
     if chunk.len() > 500 {
       let path = format!("{}/{}", opts.out, chunk_idx);
       println!("Writing next file to {}", path);
       let mut file = File::create(path)?;
       let limit = rng.gen_range(0..chunk.len());
-      let chunk = &chunk[limit..min(limit + 50_000, chunk.len())];
+      //let chunk = &chunk[limit..min(limit + 50_000, chunk.len())];
 
       for instruction in chunk {
         write!(file, "{}\n", instruction)?;
