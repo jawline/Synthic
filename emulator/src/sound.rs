@@ -648,6 +648,7 @@ impl Sound {
     samples: &Sender<f32>,
     disable_sound: bool,
   ) {
+
     // If the sound is disabled do not do any work, including update internal state.
     if disable_sound {
       return;
