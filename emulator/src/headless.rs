@@ -82,6 +82,7 @@ pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
             State::Observing => {
                 reset_buttons(&mut gameboy_state);
                 if seconds_since_last_transition > 30 {
+                    println!("PRESSING BUTTONS");
                     current_state = State::PressingButtons;
                     last_state_transition = seconds;
                 }
@@ -92,6 +93,7 @@ pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
                     current_state = State::Observing;
                     last_state_transition = seconds;
                     reset_buttons(&mut gameboy_state);
+                    println!("OBSERVING");
                 }
             },
         }
