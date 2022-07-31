@@ -1,3 +1,4 @@
+use failure::format_err;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
@@ -84,57 +85,80 @@ fn try_bool_or_u8(s: &str) -> Result<bool, Box<dyn Error>> {
   }
 }
 
-pub fn parse_file(filename: &str) -> Result<Vec<Instruction>, Box<dyn Error>> {
+pub fn parse_file_into_chunks_where_buttons_are_not_being_pressed(
+  filename: &str,
+) -> Result<Vec<Vec<Instruction>>, Box<dyn Error>> {
+  let mut chunks = Vec::new();
   let mut res = Vec::new();
   let lines = read_lines(filename)?;
+
+  let mut observing = true;
   for line in lines {
     let line = line?;
     println!("LINE: {}", line);
-    // TODO: I don't actually need to allocate here if I use iter functions
-    let parts: Vec<String> = line.split(" ").map(|x| x.to_string()).collect();
-    if parts[0] == "CH" && parts.len() > 5 {
-      let channel: usize = parts[1].parse::<usize>()?;
-      let at: usize = parts[parts.len() - 1].parse::<usize>()?;
-      if let Some(type_) = match parts[2].as_str() {
-        "FREQLSB" => {
-          let frequency = parts[3].parse::<u8>()?;
-          Some(Type::Lsb { frequency })
+
+    if line == "PRESSING BUTTONS" {
+      chunks.push(res);
+      res = Vec::new();
+      observing = false;
+    } else if line == "OBSERVING" {
+      observing = true;
+    } else if observing {
+      // TODO: I don't actually need to allocate here if I use iter functions
+      let parts: Vec<String> = line.split(" ").map(|x| x.to_string()).collect();
+      if parts[0] == "CH" && parts.len() > 5 {
+        let channel: usize = parts[1].parse::<usize>()?;
+        let at: usize = parts[parts.len() - 1].parse::<usize>()?;
+        if let Some(type_) = match parts[2].as_str() {
+          "FREQLSB" => {
+            let frequency = parts[3].parse::<u8>()?;
+            Some(Type::Lsb { frequency })
+          }
+          "FREQMSB" => {
+            let frequency = parts[3].parse::<u8>()?;
+            let length_enable = try_bool_or_u8(&parts[4])?;
+            let trigger = try_bool_or_u8(&parts[5])?;
+            Some(Type::Msb {
+              frequency,
+              length_enable,
+              trigger,
+            })
+          }
+          "VOLENVPER" => {
+            let volume = parts[3].parse::<u8>()?;
+            let add = try_bool_or_u8(&parts[4])?;
+            let period = parts[5].parse::<u8>()?;
+            Some(Type::Vol {
+              volume,
+              add,
+              period,
+            })
+          }
+          "DUTYLL" => {
+            let duty = parts[3].parse::<u8>()?;
+            let length_load = parts[4].parse::<u8>()?;
+            Some(Type::Duty { duty, length_load })
+          }
+          &_ => {
+            println!("FAILED ON LINE");
+            /* There is a lot of other noise in stdouts so this isn't necessarily an error */
+            None
+          }
+        } {
+          res.push(Instruction { at, channel, type_ });
         }
-        "FREQMSB" => {
-          let frequency = parts[3].parse::<u8>()?;
-          let length_enable = try_bool_or_u8(&parts[4])?;
-          let trigger = try_bool_or_u8(&parts[5])?;
-          Some(Type::Msb {
-            frequency,
-            length_enable,
-            trigger,
-          })
-        }
-        "VOLENVPER" => {
-          let volume = parts[3].parse::<u8>()?;
-          let add = try_bool_or_u8(&parts[4])?;
-          let period = parts[5].parse::<u8>()?;
-          Some(Type::Vol {
-            volume,
-            add,
-            period,
-          })
-        }
-        "DUTYLL" => {
-          let duty = parts[3].parse::<u8>()?;
-          let length_load = parts[4].parse::<u8>()?;
-          Some(Type::Duty { duty, length_load })
-        }
-        &_ => {
-          println!("FAILED ON LINE");
-          /* There is a lot of other noise in stdouts so this isn't necessarily an error */
-          None
-        }
-      } {
-        res.push(Instruction { at, channel, type_ });
       }
-    } else {
     }
   }
-  Ok(res)
+  Ok(chunks)
+}
+
+pub fn parse_file(filename: &str) -> Result<Vec<Instruction>, Box<dyn Error>> {
+  let res = parse_file_into_chunks_where_buttons_are_not_being_pressed(filename)?;
+
+  if res.len() != 0 {
+    Err(format_err!("parse_file expected only one chunk"))?
+  }
+
+  Ok(res.into_iter().next().unwrap())
 }

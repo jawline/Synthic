@@ -18,6 +18,7 @@ ciborium = "0.1.0"
 cpal = "0.13.4"
 rand = "0.8.5"
 hound = "3.4.0"
+failure = "0.1.8"
 
 [profile.dev]
 overflow-checks = false

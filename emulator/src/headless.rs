@@ -8,10 +8,9 @@ use crate::machine::Machine;
 use crate::ppu::{PpuStepState, GB_SCREEN_HEIGHT, GB_SCREEN_WIDTH};
 use log::info;
 
-
 enum State {
-    Observing,
-    PressingButtons,
+  Observing,
+  PressingButtons,
 }
 
 fn reset_buttons(machine: &mut Machine) {
@@ -55,7 +54,6 @@ pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
   let mut seconds = 0;
   let mut rng = thread_rng();
 
-
   let mut last_state_transition = 0;
   let mut current_state = State::Observing;
 
@@ -83,23 +81,23 @@ pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
         let seconds_since_last_transition = seconds - last_state_transition;
 
         match current_state {
-            State::Observing => {
-                reset_buttons(&mut gameboy_state);
-                if seconds_since_last_transition > 30 {
-                    println!("PRESSING BUTTONS");
-                    current_state = State::PressingButtons;
-                    last_state_transition = seconds;
-                }
-            },
-            State::PressingButtons => {
-                random_buttons(&mut gameboy_state, &mut rng);
-                if seconds_since_last_transition > 20 {
-                    current_state = State::Observing;
-                    last_state_transition = seconds;
-                    reset_buttons(&mut gameboy_state);
-                    println!("OBSERVING");
-                }
-            },
+          State::Observing => {
+            reset_buttons(&mut gameboy_state);
+            if seconds_since_last_transition > 30 {
+              println!("PRESSING BUTTONS");
+              current_state = State::PressingButtons;
+              last_state_transition = seconds;
+            }
+          }
+          State::PressingButtons => {
+            random_buttons(&mut gameboy_state, &mut rng);
+            if seconds_since_last_transition > 20 {
+              current_state = State::Observing;
+              last_state_transition = seconds;
+              reset_buttons(&mut gameboy_state);
+              println!("OBSERVING");
+            }
+          }
         }
       }
       _ => {}

@@ -268,7 +268,6 @@ impl Ppu {
   }
 
   fn render_line(&mut self, mem: &mut GameboyState, pixels: &mut [u8]) {
-
     if self.current_line >= GB_SCREEN_HEIGHT as u8 {
       return;
     }
@@ -490,7 +489,6 @@ impl Ppu {
       }
       Mode::VRAM => {
         if self.cycles_in_mode >= 172 {
-
           if !disable_framebuffer {
             self.render_line(mem, draw);
           }
