@@ -9,8 +9,10 @@ use crate::ppu::{PpuStepState, GB_SCREEN_HEIGHT, GB_SCREEN_WIDTH};
 use log::info;
 
 enum State {
+  Startup,
   Observing,
   PressingButtons,
+  AfterPressingButtons,
 }
 
 fn reset_buttons(machine: &mut Machine) {
@@ -55,7 +57,11 @@ pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
   let mut rng = thread_rng();
 
   let mut last_state_transition = 0;
-  let mut current_state = State::Observing;
+
+  // We start in a 'PRESSING BUTTONS' state for a few seconds to give the emulator time to start up
+  // without long gaps between music
+  let mut current_state = State::Startup;
+  println!("PRESSING BUTTONS");
 
   loop {
     let state = gameboy_state.step(&mut pixel_buffer, 1_000_000_000, &sound_tx);
@@ -81,6 +87,13 @@ pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
         let seconds_since_last_transition = seconds - last_state_transition;
 
         match current_state {
+          State::Startup => {
+            if seconds_since_last_transition > 10 {
+              println!("OBSERVING");
+              current_state = State::Observing;
+              last_state_transition = seconds;
+            }
+          }
           State::Observing => {
             reset_buttons(&mut gameboy_state);
             if seconds_since_last_transition > 30 {
@@ -92,9 +105,15 @@ pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
           State::PressingButtons => {
             random_buttons(&mut gameboy_state, &mut rng);
             if seconds_since_last_transition > 20 {
-              current_state = State::Observing;
+              current_state = State::AfterPressingButtons;
               last_state_transition = seconds;
               reset_buttons(&mut gameboy_state);
+            }
+          }
+          State::AfterPressingButtons => {
+            if seconds_since_last_transition > 3 {
+              current_state = State::Observing;
+              last_state_transition = seconds;
               println!("OBSERVING");
             }
           }

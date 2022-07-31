@@ -1,7 +1,6 @@
 use clap::{AppSettings, Clap};
 use gb_int::encoded_file::*;
-use rand::{thread_rng, Rng};
-use std::cmp::{max, min};
+use std::cmp::max;
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
@@ -61,7 +60,6 @@ fn find_repeating_subsequence(cycles: &[Instruction]) -> Vec<Instruction> {
 fn main() -> Result<(), Box<dyn Error>> {
   env_logger::init();
   let opts: Opts = Opts::parse();
-  let mut rng = thread_rng();
   let instruction_chunks =
     parse_file_into_chunks_where_buttons_are_not_being_pressed(&opts.recording)?;
 
@@ -85,8 +83,6 @@ fn main() -> Result<(), Box<dyn Error>> {
       let path = format!("{}/{}", opts.out, chunk_idx);
       println!("Writing next file to {}", path);
       let mut file = File::create(path)?;
-      let limit = rng.gen_range(0..chunk.len());
-      //let chunk = &chunk[limit..min(limit + 50_000, chunk.len())];
 
       for instruction in chunk {
         write!(file, "{}\n", instruction)?;

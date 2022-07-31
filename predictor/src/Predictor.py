@@ -13,7 +13,6 @@ import argparse
 
 # Data preparation
 import numpy as np
-import pescador
 
 from sample import (
     SampleDataset,
