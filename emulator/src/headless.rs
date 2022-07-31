@@ -29,13 +29,17 @@ fn reset_buttons(machine: &mut Machine) {
 fn random_buttons(machine: &mut Machine, rng: &mut ThreadRng) {
   let state = &mut machine.state.memory;
   state.a = rng.gen();
-  state.b = rng.gen();
+  // Lower the probability of B because it is usually a back button and we want to go forward
+  state.b = rng.gen_range(0..100) == 0;
   state.start = rng.gen();
-  state.select = rng.gen();
-  state.up = rng.gen();
-  state.down = rng.gen();
-  state.left = rng.gen();
-  state.right = rng.gen();
+  state.select = rng.gen_range(0..100) == 0;
+
+  // 1 in 5 probability of any dir button or doing nothing
+  let dir = rng.gen_range(0..5);
+  state.up = dir == 0;
+  state.down = dir == 1;
+  state.left = dir == 2;
+  state.right = dir == 3;
 }
 
 pub fn run(mut gameboy_state: Machine) -> Result<(), Box<dyn Error>> {
