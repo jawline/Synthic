@@ -51,14 +51,6 @@ def prepare_seed(loader, command_generator, device):
           cmd = command_of_bytes(seed[i:i+BYTES_PER_ENTRY])
           print_feature(cmd, file=f) 
 
-  # Cut the seed to the receptive window of our model so that it executes faster
-  # We do this after printing the seed so we can hear more of the song than
-  # actually goes into the model (lets us listen to see if it's just learned
-  # a sequence or come up with something novel)
-  #print("Seed shape: ", seed.shape)
-  #receptive_field = command_generator.receptive_field()
-  #seed = seed[0:receptive_field]
-
   return MovingWindow(seed, device)
 
 def generate_a_song(loader, load_fn, path, device):

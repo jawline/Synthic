@@ -24,7 +24,7 @@ that PositionalEncoding should add anything to the model, but maybe I am misunde
 """
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model, max_len = 1024 * 32):
+    def __init__(self, d_model, max_len = MAX_WINDOW_SIZE * BYTES_PER_ENTRY):
         super().__init__()
         assert(MAX_WINDOW_SIZE <= max_len)
         position = torch.arange(max_len).unsqueeze(1)
@@ -69,7 +69,7 @@ class CausalConv1d(nn.Module):
         return self.conv(x)
 
 class Pointwise(nn.Module):
-    def __init__(self, dim, hfactor, kernel_size):
+    def __init__(self, dim, hfactor):
         super(Pointwise, self).__init__()
 
         expanded_dim = dim * hfactor
@@ -84,6 +84,22 @@ class Pointwise(nn.Module):
 
     def forward(self, x):
         return self.transform(x) 
+
+class PermutedFeedForward(nn.Module):
+    def __init__(self, dim, feed_forward_dim, dropout):
+        super(PermutedFeedForward, self).__init__()
+        self.layer = nn.Sequential(*[
+                nn.Linear(dim, feed_forward_dim),
+                nn.ReLU(), # TODO: Play with different activations?
+                nn.Dropout(dropout),
+                nn.Linear(feed_forward_dim, dim)
+        ])
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1)
+        x = self.layer(x)
+        x = x.permute(0, 2, 1)
+        return x
 
 """
 A residual block trains a layer to predict the residual of a previous
@@ -106,11 +122,11 @@ class AttentionBlock(nn.Module):
         self.v = nn.Linear(dim, dim)
         self.attn = LocalAttention(
             dim = dim,
-            window_size = 256,
+            window_size = 512,
             causal = True,
             look_backward = 1,
             look_forward = 0,
-            dropout = 0.0,
+            dropout = 0.1,
             autopad = True,
             exact_windowsize = False)
 
@@ -128,7 +144,7 @@ before using a self attention layer since the conv representation is (batch_sz, 
 class PermutedResidualAttentionBlock(nn.Module):
     def __init__(self, dim):
         super(PermutedResidualAttentionBlock, self).__init__()
-        self.attn = ResidualBlock(AttentionBlock(dim))
+        self.attn = AttentionBlock(dim)
 
     def forward(self, x):
         x = x.permute(0, 2, 1)
@@ -137,10 +153,11 @@ class PermutedResidualAttentionBlock(nn.Module):
         return x
 
 class ModelLayer(nn.Module):
-    def __init__(self, causal, dim, hfactor, batch_norm, layer_dropout):
+    def __init__(self, dim, causal, forward, batch_norm, layer_dropout):
         super(ModelLayer, self).__init__()
-        residual = ResidualBlock(Pointwise(dim, hfactor, batch_norm))
-        layers = [causal, residual]
+
+        residual = ResidualBlock(nn.Sequential(*[causal, forward]))
+        layers = [residual]
         
         if batch_norm:
             layers.append(nn.BatchNorm1d(dim))
@@ -158,15 +175,20 @@ This layer combines a causal convolution layer and a residual layer together, op
 batch normalizing the output. A stack of these blocks forms our CausalConv model.
 """
 def CausalConvModelLayer(dim, hfactor, kernel_size, batch_norm, dilation, layer_dropout):
-    return ModelLayer(CausalConv1d(dim, dim, kernel_size, dilation), dim, hfactor, batch_norm, layer_dropout)
+    causal = CausalConv1d(dim, dim, kernel_size, dilation)
+    pointwise = Pointwise(dim, hfactor)
+    return ModelLayer(dim, causal, pointwise, batch_norm, layer_dropout)
 
 
 """
 This layer combines an attention block and a residual layer together, optionally
 batch normalizing the output.
 """
-def AttentionModelLayer(dim, hfactor, batch_norm, layer_dropout):
-    return ModelLayer(PermutedResidualAttentionBlock(dim), dim, hfactor, batch_norm, layer_dropout)
+def AttentionModelLayer(dim, qkv_dim, hfactor, batch_norm, layer_dropout):
+    # TODO: Use qkv dim
+    causal = PermutedResidualAttentionBlock(dim)
+    forward = PermutedFeedForward(dim, 2048, layer_dropout)
+    return ModelLayer(dim, causal, forward, batch_norm, layer_dropout)
 
 """
 A model that combines layers of either convolutions or local attention to predict the next byte in
@@ -181,8 +203,9 @@ num_blocks should be one.
 class GameboyNet(nn.Module):
     def __init__(self,
             dim=256,
+            qkv_dim=256,
             num_blocks=1,
-            layer_spec=[item for sublist in [["attention" for i in range(40)]] for item in sublist],
+            layer_spec=[item for sublist in [["attention" for i in range(15)]] for item in sublist],
             hfactor=4,
             layer_dropout=0.0,
             kernel_size=BYTES_PER_ENTRY*30,
@@ -204,6 +227,7 @@ class GameboyNet(nn.Module):
             if spec == "attention":
                 return AttentionModelLayer(
                         dim=dim,
+                        qkv_dim=dim,
                         hfactor=hfactor,
                         batch_norm=batch_norm,
                         layer_dropout=layer_dropout)
@@ -219,7 +243,7 @@ class GameboyNet(nn.Module):
         num_layers = len(layer_spec)
 
         # First we embed and then add positional encodings to our input
-        self.prepare_input = nn.Sequential(*[nn.Embedding(dim, dim)])
+        self.prepare_input = nn.Sequential(*[nn.Embedding(dim, dim), PositionalEncoding(dim)])
 
         # Build the core of our model by stacking [layers] CausalConvModelLayer instances on top of each other.
         layers = [make_layer(layer_idx) for layer_idx in range(num_layers) for _block in range(num_blocks)]
@@ -275,10 +299,12 @@ Load a model, either initialized with random values if [path] is None or from an
 saved on disk if [path] is a string.
 """
 def load_model(model, path, device):
+    
+    default_lr = 0.0001
 
     optimizer = optim.AdamW(
         model.parameters(),
-        lr = 0.0001,
+        lr = default_lr,
     )
 
     # optimizer = optim.SGD ( model.parameters(), lr = 0.001 )
@@ -295,7 +321,7 @@ def load_model(model, path, device):
         #scheduler = torch.load(path + ".scheduler")
     else:
         # Fresh model so start with some adaptive warmup
-        scheduler = AdaptiveWarmup(optimizer, start_lr=0.00000001, end_lr=0.0001, num_steps=5, criterion=lr_criterion, underlying_scheduler=scheduler, pass_through_loss_to_underlying=True)
+        scheduler = AdaptiveWarmup(optimizer, start_lr=0.00000001, end_lr=default_lr, num_steps=5, criterion=lr_criterion, underlying_scheduler=scheduler, pass_through_loss_to_underlying=True)
 
     return model, optimizer, scheduler
 
