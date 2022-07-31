@@ -1,7 +1,7 @@
 import math
 
 # Sample constants we need to size the model
-from sample import MAX_WINDOW_SIZE,BYTES_PER_ENTRY
+from sample import MAX_WINDOW_SIZE, BYTES_PER_ENTRY
 
 # Torch stuff
 import torch
@@ -22,20 +22,24 @@ of inputs.
 TODO: Currently there is no clear identifier for where we are in a piece of music so I don't think
 that PositionalEncoding should add anything to the model, but maybe I am misunderstanding it's usage
 """
-class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model, max_len = MAX_WINDOW_SIZE * BYTES_PER_ENTRY):
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=MAX_WINDOW_SIZE * BYTES_PER_ENTRY):
         super().__init__()
-        assert(MAX_WINDOW_SIZE <= max_len)
+        assert MAX_WINDOW_SIZE <= max_len
         position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
+        )
         pe = torch.zeros(max_len, 1, d_model)
         pe[:, 0, 0::2] = torch.sin(position * div_term)
         pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, x):
-        return x + self.pe[:x.size(0)]
+        return x + self.pe[: x.size(0)]
+
 
 """
 Causal convolutions prevent the convolution calculation for x[i] considering data from
@@ -58,15 +62,20 @@ a causal convolution padding on the same input would look like:
 If the convolution has a dilation > 1 then we will multiply the amount of padding by [dilation]
 because dilated convolutions consider every [dilation * kernel_size] inputs around a target output.
 """
+
+
 class CausalConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, dilation, **kwargs):
         super(CausalConv1d, self).__init__()
         self.pad = (kernel_size - 1) * dilation
-        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size , dilation=dilation, **kwargs)
+        self.conv = nn.Conv1d(
+            in_channels, out_channels, kernel_size, dilation=dilation, **kwargs
+        )
 
     def forward(self, x):
         x = F.pad(x, (self.pad, 0))
         return self.conv(x)
+
 
 class Pointwise(nn.Module):
     def __init__(self, dim, hfactor):
@@ -83,17 +92,20 @@ class Pointwise(nn.Module):
         self.transform = nn.Sequential(*layers)
 
     def forward(self, x):
-        return self.transform(x) 
+        return self.transform(x)
+
 
 class PermutedFeedForward(nn.Module):
     def __init__(self, dim, feed_forward_dim, dropout):
         super(PermutedFeedForward, self).__init__()
-        self.layer = nn.Sequential(*[
+        self.layer = nn.Sequential(
+            *[
                 nn.Linear(dim, feed_forward_dim),
-                nn.ReLU(), # TODO: Play with different activations?
+                nn.ReLU(),  # TODO: Play with different activations?
                 nn.Dropout(dropout),
-                nn.Linear(feed_forward_dim, dim)
-        ])
+                nn.Linear(feed_forward_dim, dim),
+            ]
+        )
 
     def forward(self, x):
         x = x.permute(0, 2, 1)
@@ -101,11 +113,14 @@ class PermutedFeedForward(nn.Module):
         x = x.permute(0, 2, 1)
         return x
 
+
 """
 A residual block trains a layer to predict the residual of a previous
 output (i.e, how much do we need to nudge the output by the get the
 correct result).
 """
+
+
 class ResidualBlock(nn.Module):
     def __init__(self, layer):
         super(ResidualBlock, self).__init__()
@@ -114,6 +129,7 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
         return x + self.layer(x)
 
+
 class AttentionBlock(nn.Module):
     def __init__(self, dim):
         super(AttentionBlock, self).__init__()
@@ -121,14 +137,15 @@ class AttentionBlock(nn.Module):
         self.k = nn.Linear(dim, dim)
         self.v = nn.Linear(dim, dim)
         self.attn = LocalAttention(
-            dim = dim,
-            window_size = 512,
-            causal = True,
-            look_backward = 1,
-            look_forward = 0,
-            dropout = 0.1,
-            autopad = True,
-            exact_windowsize = False)
+            dim=dim,
+            window_size=512,
+            causal=True,
+            look_backward=1,
+            look_forward=0,
+            dropout=0.1,
+            autopad=True,
+            exact_windowsize=False,
+        )
 
     def forward(self, x):
         q = self.q(x)
@@ -137,10 +154,13 @@ class AttentionBlock(nn.Module):
         x = self.attn(q, k, v)
         return x
 
+
 """
 When used with the ConvLM we need to permute the dimensions
 before using a self attention layer since the conv representation is (batch_sz, dim, seq_size) but LocalAttention expects (batch_sz, seq_size, dim).
 """
+
+
 class PermutedResidualAttentionBlock(nn.Module):
     def __init__(self, dim):
         super(PermutedResidualAttentionBlock, self).__init__()
@@ -152,13 +172,14 @@ class PermutedResidualAttentionBlock(nn.Module):
         x = x.permute(0, 2, 1)
         return x
 
+
 class ModelLayer(nn.Module):
     def __init__(self, dim, causal, forward, batch_norm, layer_dropout):
         super(ModelLayer, self).__init__()
 
         residual = ResidualBlock(nn.Sequential(*[causal, forward]))
         layers = [residual]
-        
+
         if batch_norm:
             layers.append(nn.BatchNorm1d(dim))
 
@@ -170,11 +191,16 @@ class ModelLayer(nn.Module):
     def forward(self, x):
         return self.layer(x)
 
+
 """
 This layer combines a causal convolution layer and a residual layer together, optionally
 batch normalizing the output. A stack of these blocks forms our CausalConv model.
 """
-def CausalConvModelLayer(dim, hfactor, kernel_size, batch_norm, dilation, layer_dropout):
+
+
+def CausalConvModelLayer(
+    dim, hfactor, kernel_size, batch_norm, dilation, layer_dropout
+):
     causal = CausalConv1d(dim, dim, kernel_size, dilation)
     pointwise = Pointwise(dim, hfactor)
     return ModelLayer(dim, causal, pointwise, batch_norm, layer_dropout)
@@ -184,11 +210,14 @@ def CausalConvModelLayer(dim, hfactor, kernel_size, batch_norm, dilation, layer_
 This layer combines an attention block and a residual layer together, optionally
 batch normalizing the output.
 """
+
+
 def AttentionModelLayer(dim, qkv_dim, hfactor, batch_norm, layer_dropout):
     # TODO: Use qkv dim
     causal = PermutedResidualAttentionBlock(dim)
     forward = PermutedFeedForward(dim, 2048, layer_dropout)
     return ModelLayer(dim, causal, forward, batch_norm, layer_dropout)
+
 
 """
 A model that combines layers of either convolutions or local attention to predict the next byte in
@@ -200,22 +229,28 @@ layers (e.g, Conv(256, 256 * [hfactor]))
 When [dilations] is true [num_blocks] sets the number of stacked blocks of [layers], if [dilations] is not true then
 num_blocks should be one.
 """
+
+
 class GameboyNet(nn.Module):
-    def __init__(self,
-            dim=256,
-            qkv_dim=256,
-            num_blocks=1,
-            layer_spec=[item for sublist in [["attention" for i in range(15)]] for item in sublist],
-            hfactor=4,
-            layer_dropout=0.0,
-            kernel_size=BYTES_PER_ENTRY*30,
-            dilations=False,
-            batch_norm=True): 
+    def __init__(
+        self,
+        dim=256,
+        qkv_dim=256,
+        num_blocks=1,
+        layer_spec=[
+            item for sublist in [["attention" for i in range(15)]] for item in sublist
+        ],
+        hfactor=4,
+        layer_dropout=0.0,
+        kernel_size=BYTES_PER_ENTRY * 30,
+        dilations=False,
+        batch_norm=True,
+    ):
         super(GameboyNet, self).__init__()
 
         if not dilations:
-            assert(num_blocks == 1)
-       
+            assert num_blocks == 1
+
         def dilation(i):
             if dilations:
                 return 2**i
@@ -226,27 +261,35 @@ class GameboyNet(nn.Module):
             spec = layer_spec[i]
             if spec == "attention":
                 return AttentionModelLayer(
-                        dim=dim,
-                        qkv_dim=dim,
-                        hfactor=hfactor,
-                        batch_norm=batch_norm,
-                        layer_dropout=layer_dropout)
+                    dim=dim,
+                    qkv_dim=dim,
+                    hfactor=hfactor,
+                    batch_norm=batch_norm,
+                    layer_dropout=layer_dropout,
+                )
             elif spec == "convolution":
                 return CausalConvModelLayer(
-                        dim=dim,
-                        hfactor=hfactor,
-                        kernel_size=kernel_size,
-                        batch_norm=batch_norm,
-                        dilation=dilation(i),
-                        layer_dropout=layer_dropout)
+                    dim=dim,
+                    hfactor=hfactor,
+                    kernel_size=kernel_size,
+                    batch_norm=batch_norm,
+                    dilation=dilation(i),
+                    layer_dropout=layer_dropout,
+                )
 
         num_layers = len(layer_spec)
 
         # First we embed and then add positional encodings to our input
-        self.prepare_input = nn.Sequential(*[nn.Embedding(dim, dim), PositionalEncoding(dim)])
+        self.prepare_input = nn.Sequential(
+            *[nn.Embedding(dim, dim), PositionalEncoding(dim)]
+        )
 
         # Build the core of our model by stacking [layers] CausalConvModelLayer instances on top of each other.
-        layers = [make_layer(layer_idx) for layer_idx in range(num_layers) for _block in range(num_blocks)]
+        layers = [
+            make_layer(layer_idx)
+            for layer_idx in range(num_layers)
+            for _block in range(num_blocks)
+        ]
         self.layers = nn.Sequential(*layers)
 
         # Combine all the channels and then activate as a final step
@@ -257,16 +300,16 @@ class GameboyNet(nn.Module):
         if dilations:
             # The size of the receptive field is kernel size exponentially increased by the number
             # of layers because we are using dilations
-            self.receptive_field_size=kernel_size**num_layers
+            self.receptive_field_size = kernel_size**num_layers
         else:
             # If we don't use dilations then the receptive field size is linear in the number of layers
-            self.receptive_field_size=(kernel_size*num_layers*num_blocks)
+            self.receptive_field_size = kernel_size * num_layers * num_blocks
 
     def receptive_field(self):
         return self.receptive_field_size
 
     def forward(self, x):
-        x = self.prepare_input(x) 
+        x = self.prepare_input(x)
         # Permute the input so that the embeddings are at dim 1 and the inputs for each embedding are at dim 2
         x = x.permute(0, 2, 1)
         x = self.layers(x)
@@ -277,14 +320,17 @@ class GameboyNet(nn.Module):
     Calls forward and then permutes the result back to (batch_size, input_size, embedding_dim)
     from (batch_size, embedding_dim, input_size).
     """
+
     def predict(self, x):
         x = self.forward(x)
         return x.permute(0, 2, 1)
-        
+
 
 """
 Stop warming up if loss starts increasing
 """
+
+
 def lr_criterion(epoch, last_lr, last_loss, current_lr, current_loss):
     if epoch > 2:
         if last_loss < current_loss:
@@ -294,21 +340,26 @@ def lr_criterion(epoch, last_lr, last_loss, current_lr, current_loss):
     else:
         return None
 
+
 """
 Load a model, either initialized with random values if [path] is None or from an existing network
 saved on disk if [path] is a string.
 """
+
+
 def load_model(model, path, device):
-    
+
     default_lr = 0.0001
 
     optimizer = optim.AdamW(
         model.parameters(),
-        lr = default_lr,
+        lr=default_lr,
     )
 
     # optimizer = optim.SGD ( model.parameters(), lr = 0.001 )
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.95, min_lr=0.0000000001, patience=1) 
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, "min", factor=0.95, min_lr=0.0000000001, patience=1
+    )
 
     model = model.to(device)
 
@@ -318,12 +369,21 @@ def load_model(model, path, device):
         print("Loading from " + path)
         model.load_state_dict(torch.load(path + ".model"))
         optimizer.load_state_dict(torch.load(path + ".optimizer"))
-        #scheduler = torch.load(path + ".scheduler")
+        # scheduler = torch.load(path + ".scheduler")
     else:
         # Fresh model so start with some adaptive warmup
-        scheduler = AdaptiveWarmup(optimizer, start_lr=0.00000001, end_lr=default_lr, num_steps=5, criterion=lr_criterion, underlying_scheduler=scheduler, pass_through_loss_to_underlying=True)
+        scheduler = AdaptiveWarmup(
+            optimizer,
+            start_lr=0.00000001,
+            end_lr=default_lr,
+            num_steps=5,
+            criterion=lr_criterion,
+            underlying_scheduler=scheduler,
+            pass_through_loss_to_underlying=True,
+        )
 
     return model, optimizer, scheduler
+
 
 def load_gameboy_net(path, device):
     return load_model(GameboyNet(), path, device)

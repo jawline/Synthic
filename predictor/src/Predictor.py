@@ -15,7 +15,11 @@ import argparse
 import numpy as np
 import pescador
 
-from sample import SampleDataset,MAX_WINDOW_SIZE,split_training_dir_into_training_and_test_dir
+from sample import (
+    SampleDataset,
+    MAX_WINDOW_SIZE,
+    split_training_dir_into_training_and_test_dir,
+)
 from model import load_gameboy_net
 from trainer import train
 from music_generator import generate_a_song
@@ -29,9 +33,9 @@ np.set_printoptions(suppress=True)
 
 # Set device to GPU if it is available, otherwise CPU
 if torch.cuda.is_available():
-    device = torch.device('cuda')
+    device = torch.device("cuda")
 else:
-    device = torch.device('cpu')
+    device = torch.device("cpu")
 
 # The user needs to specify the execution mode ([fresh] model, [train] an
 # existing model, or [generate] music using a model). The user needs to
@@ -39,13 +43,15 @@ else:
 # a directly that contains out of training sample test-data to synthesize
 # new music from.
 
-parser = argparse.ArgumentParser(description="Train a model or generate a song with an existing model")
+parser = argparse.ArgumentParser(
+    description="Train a model or generate a song with an existing model"
+)
 
-parser.add_argument('--mode', required=True)
-parser.add_argument('--model-dir', required=True)
-parser.add_argument('--training-data', required=True)
-parser.add_argument('--test-data', required=True)
-parser.add_argument('--source-dir', required=False)
+parser.add_argument("--mode", required=True)
+parser.add_argument("--model-dir", required=True)
+parser.add_argument("--training-data", required=True)
+parser.add_argument("--test-data", required=True)
+parser.add_argument("--source-dir", required=False)
 
 args = parser.parse_args()
 
@@ -56,15 +62,30 @@ training_data = args.training_data
 test_data = args.test_data
 model_dir = args.model_dir
 
+
 def train_from(path):
     # Create a standard data loader from our samples
-    loader = torch.utils.data.DataLoader(SampleDataset(training_data, window_size=MAX_WINDOW_SIZE), num_workers=2, batch_size=4, prefetch_factor=128, pin_memory=True, persistent_workers=True)
+    loader = torch.utils.data.DataLoader(
+        SampleDataset(training_data, window_size=MAX_WINDOW_SIZE),
+        num_workers=2,
+        batch_size=4,
+        prefetch_factor=128,
+        pin_memory=True,
+        persistent_workers=True,
+    )
 
-    test_loader = torch.utils.data.DataLoader(SampleDataset(test_data, window_size=MAX_WINDOW_SIZE), num_workers=1, batch_size=1, prefetch_factor=128, pin_memory=True, persistent_workers=True)
-
+    test_loader = torch.utils.data.DataLoader(
+        SampleDataset(test_data, window_size=MAX_WINDOW_SIZE),
+        num_workers=1,
+        batch_size=1,
+        prefetch_factor=128,
+        pin_memory=True,
+        persistent_workers=True,
+    )
 
     # Train a model with the data loader
     train(loader, test_loader, model, model_dir, path, device)
+
 
 def generate_from(path):
 
@@ -75,10 +96,15 @@ def generate_from(path):
     # by byte
     # We do not always train exactly on a sample when
     # training, which is why this is a flag.
-    out_of_sample_loader = torch.utils.data.DataLoader(SampleDataset(test_data, window_size=MAX_WINDOW_SIZE * 100, start_at_sample=True))
+    out_of_sample_loader = torch.utils.data.DataLoader(
+        SampleDataset(
+            test_data, window_size=MAX_WINDOW_SIZE * 100, start_at_sample=True
+        )
+    )
 
     # Generate a song using the out of sample loader
     generate_a_song(out_of_sample_loader, model, model_dir + path, device)
+
 
 if mode == "fresh":
     train_from(None)
@@ -87,4 +113,6 @@ elif mode == "train":
 elif mode == "generate":
     generate_from("last.checkpoint")
 elif mode == "split_data":
-    split_training_dir_into_training_and_test_dir(args.source_dir, training_data, test_data)
+    split_training_dir_into_training_and_test_dir(
+        args.source_dir, training_data, test_data
+    )
