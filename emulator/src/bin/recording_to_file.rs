@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   let (sound_tx, sound_rx) = mpsc::channel();
 
   let wav_spec = hound::WavSpec {
-    channels: 2,
+    channels: 1,
     sample_rate: sample_rate as u32,
     bits_per_sample: 16,
     sample_format: hound::SampleFormat::Int,

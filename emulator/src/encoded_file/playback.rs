@@ -9,6 +9,8 @@ use log::info;
 use std::error::Error;
 use std::sync::mpsc::{self, Sender};
 
+pub const VEC_SAMPLE_RATE: usize = 48000;
+
 pub fn write_lsb(m: &mut MachineState, addr: u16, val: u8) {
   m.memory.write_u8(addr, val, &mut m.cpu.registers);
 }
@@ -66,7 +68,7 @@ where
 
   let boot_rom = RomChunk::empty(256);
   let gb_test = RomChunk::empty(8096);
-  let root_map = GameboyState::new(boot_rom, gb_test);
+  let root_map = GameboyState::new(boot_rom, gb_test, false);
 
   let mut gameboy_state = MachineState {
     cpu: Cpu::new(),
@@ -85,8 +87,6 @@ where
     elapsed += 4;
 
     if elapsed > instructions[next].at {
-      println!("Moving to next instr");
-
       let todo = &instructions[next];
       match todo.type_ {
         Type::Lsb { frequency } => {
@@ -150,9 +150,8 @@ where
   Ok(())
 }
 
-pub fn to_wave_vec<F>(instructions: &[Instruction]) -> Result<Vec<f32>, Box<dyn Error>> {
-  let sample_rate = 48000;
+pub fn to_wave_vec(instructions: &[Instruction]) -> Result<Vec<f32>, Box<dyn Error>> {
   let (sound_tx, sound_rx) = mpsc::channel();
-  to_wave(instructions, sound_tx, sample_rate, || Ok(()))?;
+  to_wave(instructions, sound_tx, VEC_SAMPLE_RATE, || Ok(()))?;
   Ok(sound_rx.iter().collect())
 }

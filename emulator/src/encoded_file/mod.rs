@@ -1,6 +1,5 @@
 mod playback;
 
-use failure::format_err;
 pub use playback::*;
 use std::error::Error;
 use std::fmt;
@@ -166,10 +165,5 @@ pub fn parse_file_into_chunks_where_buttons_are_not_being_pressed(
 
 pub fn parse_file(filename: &str) -> Result<Vec<Instruction>, Box<dyn Error>> {
   let res = parse_file_into_chunks_where_buttons_are_not_being_pressed(filename)?;
-
-  if res.len() != 1 {
-    Err(format_err!("parse_file expected only one chunk"))?
-  }
-
-  Ok(res.into_iter().next().unwrap())
+  Ok(res.into_iter().flatten().collect())
 }

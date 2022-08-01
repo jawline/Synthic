@@ -1,5 +1,6 @@
 use clap::{AppSettings, Clap};
 use gb_int::encoded_file::*;
+use log::info;
 use std::cmp::max;
 use std::error::Error;
 use std::fs::File;
@@ -17,44 +18,34 @@ struct Opts {
   out: String,
 }
 
-fn offset(cycles: &[Instruction], i: usize, j: usize) -> usize {
-  (i * (cycles.len() + 1)) + j
+#[derive(Debug)]
+struct Sample {
+  pub max_amplitude: f32,
+  //pub min_amplitude: f32,
+  pub average_amplitude: f32,
 }
 
-/// A stolen longest subsequence algorithm adjusted for instructions
-#[allow(dead_code)]
-fn find_repeating_subsequence(cycles: &[Instruction]) -> Vec<Instruction> {
-  let mut dp = vec![0; (cycles.len() + 1) * (cycles.len() + 1)];
-  let n = cycles.len();
-  for i in 1..(n + 1) {
-    for j in 1..(n + 1) {
-      if i != j && cycles[i - 1] == cycles[j - 1] {
-        dp[offset(cycles, i, j)] = 1 + dp[offset(cycles, i - 1, j - 1)];
-      } else {
-        dp[offset(cycles, i, j)] = max(dp[offset(cycles, i, j - 1)], dp[offset(cycles, i - 1, j)]);
-      }
+impl Sample {
+  // There are two channels
+  fn new(wave: &[f32]) -> Self {
+    let mut max_amplitude: f32 = -1.;
+    //let mut min_amplitude: f32 = 1.;
+    let mut average_amplitude_sum = 0.;
+    let mut total_samples = 0;
+
+    for &sample in wave.iter() {
+      max_amplitude = max_amplitude.max(sample);
+      //min_amplitude = min_amplitude.min(sample);
+      average_amplitude_sum += sample;
+      total_samples += 1;
+    }
+
+    Sample {
+      max_amplitude,
+      //min_amplitude,
+      average_amplitude: average_amplitude_sum / (total_samples as f32),
     }
   }
-
-  let mut i = n;
-  let mut j = n;
-  let mut sequence = Vec::new();
-
-  while i > 0 && j > 0 {
-    if dp[offset(cycles, i, j)] == dp[offset(cycles, i - 1, j - 1)] + 1 {
-      sequence.push(cycles[i - 1]);
-      i -= 1;
-      j -= 1;
-    } else if dp[offset(cycles, i, j)] == dp[offset(cycles, i - 1, j)] {
-      i -= 1;
-    } else {
-      j -= 1;
-    }
-  }
-
-  sequence.reverse();
-
-  sequence
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -63,23 +54,42 @@ fn main() -> Result<(), Box<dyn Error>> {
   let instruction_chunks =
     parse_file_into_chunks_where_buttons_are_not_being_pressed(&opts.recording)?;
 
+  info!("There are {} instruction chunks", instruction_chunks.len());
+
+  let num_samples_to_take_from_file = 10;
+
   let step_by = max(
     instruction_chunks
       .iter()
       .filter(|chunk| chunk.len() > 500)
       .count()
-      / 4,
+      / num_samples_to_take_from_file,
     1,
   );
-  for (chunk_idx, chunk) in instruction_chunks
+
+  info!("Step by: {}", step_by);
+
+  'outer: for (chunk_idx, chunk) in instruction_chunks
     .iter()
     .filter(|chunk| chunk.len() > 500)
-    .step_by(step_by)
-    .take(4)
     .enumerate()
+    .step_by(step_by)
+    .take(num_samples_to_take_from_file)
   {
+    info!("Chunk {}", chunk_idx);
     //let chunk = find_repeating_subsequence(chunk);
     if chunk.len() > 500 {
+      // Sample every 3s of the wave and reject any candidates with
+      // no sound in a 3s span
+      let wave: Vec<f32> = to_wave_vec(&chunk)?;
+      for wave in wave.chunks(VEC_SAMPLE_RATE * 3) {
+        let sampled = Sample::new(wave);
+        println!("{:?}", sampled);
+        if sampled.max_amplitude == 0. || sampled.average_amplitude == 0. {
+          continue 'outer;
+        }
+      }
+
       let path = format!("{}/{}", opts.out, chunk_idx);
       println!("Writing next file to {}", path);
       let mut file = File::create(path)?;

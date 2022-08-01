@@ -428,7 +428,8 @@ impl Channels {
    * Get the mixed amplitude of all channels now.
    */
   fn amplitude(&self, mem: &mut GameboyState) -> f32 {
-    self.channel_one.amplitude(mem) + self.channel_two.amplitude(mem) + self.wave.amplitude(mem)
+    (self.channel_one.amplitude(mem) + self.channel_two.amplitude(mem) + self.wave.amplitude(mem))
+      / 3.
   }
 }
 

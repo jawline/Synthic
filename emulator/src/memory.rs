@@ -168,10 +168,15 @@ pub struct GameboyState {
   pub right: bool,
   pub up: bool,
   pub down: bool,
+
+  /**
+   * Print sound register changes to stdout
+   */
+  pub print_sound_registers: bool,
 }
 
 impl GameboyState {
-  pub fn new(boot: RomChunk, cart: RomChunk) -> GameboyState {
+  pub fn new(boot: RomChunk, cart: RomChunk, print_sound_registers: bool) -> GameboyState {
     GameboyState {
       cart_type: cart.read_u8(0x147),
 
@@ -207,6 +212,8 @@ impl GameboyState {
       up: false,
       down: false,
       gamepad_high: false,
+
+      print_sound_registers,
     }
   }
 
@@ -366,11 +373,13 @@ impl GameboyState {
 
   pub fn write_u8(&mut self, address: u16, val: u8, registers: &Registers) {
     if address == 0xFF10 {
-      println!(
-        "SWEEP {} AT {}",
-        val,
-        registers.total_clock - self.last_clock
-      );
+      if self.print_sound_registers {
+        println!(
+          "SWEEP {} AT {}",
+          val,
+          registers.total_clock - self.last_clock
+        );
+      }
 
       self.last_clock = registers.total_clock;
     }
@@ -378,12 +387,15 @@ impl GameboyState {
     if address == 0xFF11 {
       let duty = (val & 0b1100_0000) >> 6;
       let length = val & 0b0011_1111;
-      println!(
-        "CH 1 DUTYLL {} {} AT {}",
-        duty,
-        length,
-        registers.total_clock - self.last_clock
-      );
+
+      if self.print_sound_registers {
+        println!(
+          "CH 1 DUTYLL {} {} AT {}",
+          duty,
+          length,
+          registers.total_clock - self.last_clock
+        );
+      }
       self.last_clock = registers.total_clock;
     }
 
@@ -392,22 +404,26 @@ impl GameboyState {
       let add_mode = (val & 0b0000_1000) >> 3;
       let period = val & 0b0000_0111;
 
-      println!(
-        "CH 1 VOLENVPER {} {} {} AT {}",
-        vol,
-        add_mode,
-        period,
-        registers.total_clock - self.last_clock
-      );
+      if self.print_sound_registers {
+        println!(
+          "CH 1 VOLENVPER {} {} {} AT {}",
+          vol,
+          add_mode,
+          period,
+          registers.total_clock - self.last_clock
+        );
+      }
       self.last_clock = registers.total_clock;
     }
 
     if address == 0xFF13 {
-      println!(
-        "CH 1 FREQLSB {} AT {}",
-        val,
-        registers.total_clock - self.last_clock
-      );
+      if self.print_sound_registers {
+        println!(
+          "CH 1 FREQLSB {} AT {}",
+          val,
+          registers.total_clock - self.last_clock
+        );
+      }
       self.last_clock = registers.total_clock;
     }
 
@@ -415,25 +431,31 @@ impl GameboyState {
       let msb = val & 0b0000_0111;
       let le = isset8(val, 0b0100_0000);
       let trigger = isset8(val, 0b1000_0000);
-      println!(
-        "CH 1 FREQMSB {} {} {} AT {}",
-        msb,
-        le,
-        trigger,
-        registers.total_clock - self.last_clock
-      );
+
+      if self.print_sound_registers {
+        println!(
+          "CH 1 FREQMSB {} {} {} AT {}",
+          msb,
+          le,
+          trigger,
+          registers.total_clock - self.last_clock
+        );
+      }
       self.last_clock = registers.total_clock;
     }
 
     if address == 0xFF16 {
       let duty = (val & 0b1100_0000) >> 6;
       let length = val & 0b0011_1111;
-      println!(
-        "CH 2 DUTYLL {} {} AT {}",
-        duty,
-        length,
-        registers.total_clock - self.last_clock
-      );
+
+      if self.print_sound_registers {
+        println!(
+          "CH 2 DUTYLL {} {} AT {}",
+          duty,
+          length,
+          registers.total_clock - self.last_clock
+        );
+      }
       self.last_clock = registers.total_clock;
     }
 
@@ -442,22 +464,26 @@ impl GameboyState {
       let add_mode = (val & 0b0000_1000) >> 3;
       let period = val & 0b0000_0111;
 
-      println!(
-        "CH 2 VOLENVPER {} {} {} AT {}",
-        vol,
-        add_mode,
-        period,
-        registers.total_clock - self.last_clock
-      );
+      if self.print_sound_registers {
+        println!(
+          "CH 2 VOLENVPER {} {} {} AT {}",
+          vol,
+          add_mode,
+          period,
+          registers.total_clock - self.last_clock
+        );
+      }
       self.last_clock = registers.total_clock;
     }
 
     if address == 0xFF18 {
-      println!(
-        "CH 2 FREQLSB {} AT {}",
-        val,
-        registers.total_clock - self.last_clock
-      );
+      if self.print_sound_registers {
+        println!(
+          "CH 2 FREQLSB {} AT {}",
+          val,
+          registers.total_clock - self.last_clock
+        );
+      }
       self.last_clock = registers.total_clock;
     }
 
@@ -466,13 +492,15 @@ impl GameboyState {
       let le = isset8(val, 0b0100_0000);
       let trigger = isset8(val, 0b1000_0000);
 
-      println!(
-        "CH 2 FREQMSB {} {} {} AT {}",
-        msb,
-        le,
-        trigger,
-        registers.total_clock - self.last_clock
-      );
+      if self.print_sound_registers {
+        println!(
+          "CH 2 FREQMSB {} {} {} AT {}",
+          msb,
+          le,
+          trigger,
+          registers.total_clock - self.last_clock
+        );
+      }
 
       self.last_clock = registers.total_clock;
     }

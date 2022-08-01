@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
       info!("Loaded rom");
 
-      let root_map = GameboyState::new(boot_rom, gb_test);
+      let root_map = GameboyState::new(boot_rom, gb_test, true);
 
       info!("Cart type: {}", root_map.cart_type);
 
