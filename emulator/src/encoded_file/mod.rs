@@ -1,4 +1,7 @@
+mod playback;
+
 use failure::format_err;
+pub use playback::*;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
