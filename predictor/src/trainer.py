@@ -4,12 +4,49 @@ import torch
 from torch.cuda.amp import autocast
 from torch import nn
 
-from sample import MAX_WINDOW_SIZE
+from sample import MAX_WINDOW_SIZE, BYTES_PER_ENTRY
+
+
+class EarlyExit:
+    def __init__(self, tolerence):
+        self.tolerence = tolerence
+        self.bad_rounds = 0
+        self.last_losses = torch.as_tensor([])
+
+    def mean_loss(self):
+        if self.last_losses.size(dim=0) == 0:
+            return None
+
+        return self.last_losses.mean()
+
+    def append_loss(self, loss):
+        self.last_losses = torch.cat((self.last_losses, torch.as_tensor([loss])))
+        self.last_losses = self.last_losses[-8:]
+
+    def update(self, loss):
+        mean_loss = self.mean_loss()
+        print("Mean validation loss: ", mean_loss)
+
+        if mean_loss is None:
+            return
+
+        if loss > mean_loss:
+            self.bad_rounds += 1
+        else:
+            self.bad_rounds = 0
+            self.append_loss(loss)
+
+        if self.bad_rounds == self.tolerence:
+            raise Exception("early exit because validation loss stopped going down")
+
 
 ROUND_SZ = 1000
+VALIDATION_SZ = 500
 
 
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
+
+    early_exit = EarlyExit(4)
 
     cpu = torch.device("cpu")
 
@@ -36,24 +73,18 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         for i in range(sz):
 
-            if i % (sz / 10) == 0:
+            if i % (sz / 4) == 0:
                 print("Batch completion:", (float(i) / float(sz)) * 100.0, "%")
 
             seq = next(ldr).to(device)
-            inputs = seq[:, :-1]
-            labels = seq[:, 1:]
+            inputs = seq[:, :-BYTES_PER_ENTRY]
+            labels = seq[:, BYTES_PER_ENTRY:]
 
             optimizer.zero_grad()
-            # torch.autograd.set_detect_anomaly(True)
-            # outputs = command_generator(inputs, command_generator.get_tgt_mask(inputs.size(1)).to(device))
-            # print("Shapes: ", outputs.view(-1, 256).shape, labels.reshape(-1).shape)
             logits = command_generator(inputs)
-            # logits = logits.reshape(-1, logits.shape[-1])
-            # labels = labels.reshape(-1)
-            # print(logits.shape, labels.shape)
-            loss = criterion(logits, labels)
-            # print("Loss:", loss)
-            # loss = criterion(outputs.view(-1, 256), labels.reshape(-1))
+
+            with torch.cuda.amp.autocast():
+                loss = criterion(logits, labels)
 
             if backprop:
                 loss.backward()
@@ -61,9 +92,6 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
             running_loss.add_(loss.detach())
 
             seq = seq.detach().to(cpu)
-            del inputs
-            del labels
-            del seq
 
         result = running_loss / sz
         return result
@@ -74,10 +102,6 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
         torch.save(optimizer.state_dict(), "./" + name + ".optimizer")
 
     epoch = 1
-
-    tolerence_validation_base = 4
-    tolerence_validation = tolerence_validation_base
-    last_validation = None
 
     while True:
 
@@ -90,7 +114,9 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
         scheduler.step(loss)
 
         # Do a round 10 of validation with no backprop
-        validation_loss = step(validation_loader, 200, False)
+        validation_loss = step(validation_loader, VALIDATION_SZ, False)
+
+        early_exit.update(validation_loss.item())
 
         print("Loss:", loss.item())
         print("Validation loss:", validation_loss.item())
@@ -103,18 +129,6 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
             save(model_dir + "/" + str(int(datetime.now().timestamp())))
 
         save(model_dir + "/last.checkpoint")
-
-        if last_validation != None:
-
-            if validation_loss > last_validation:
-                print("Decremented tolerence because validation loss went down")
-                tolerence_validation = tolerence_validation - 1
-            else:
-                tolerence_validation = tolerence_validation_base
-
-            # if tolerence_validation <= 0:
-            #    sys.exit("Early exit because validation loss has stopped going down")
-        last_validation = validation_loss
 
         print("Saved checkpoint")
 

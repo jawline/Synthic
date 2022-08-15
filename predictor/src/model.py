@@ -139,7 +139,7 @@ class AttentionBlock(nn.Module):
             causal=True,
             look_backward=1,
             look_forward=0,
-            dropout=0.1,
+            dropout=0.0,
             autopad=True,
             exact_windowsize=False,
         )
@@ -235,10 +235,10 @@ class GameboyNet(nn.Module):
         qkv_dim=256,
         num_blocks=1,
         layer_spec=[
-            item for sublist in [["attention" for i in range(25)]] for item in sublist
+            item for sublist in [["attention" for i in range(20)]] for item in sublist
         ],
         hfactor=4,
-        layer_dropout=0.0,
+        layer_dropout=0,
         kernel_size=BYTES_PER_ENTRY * 30,
         dilations=False,
         batch_norm=True,

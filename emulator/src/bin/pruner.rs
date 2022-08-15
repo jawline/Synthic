@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   info!("There are {} instruction chunks", instruction_chunks.len());
 
-  let num_samples_to_take_from_file = 10;
+  let num_samples_to_take_from_file = 2;
 
   let step_by = max(
     instruction_chunks

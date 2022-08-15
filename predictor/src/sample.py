@@ -29,7 +29,7 @@ PARAM3_OFFSET = 5
 SIZE_OF_INPUT_FIELDS = 6
 
 # The maximum number of samples we will send to the model in a single iteration
-MAX_WINDOW_SIZE = 256
+MAX_WINDOW_SIZE = 512
 
 # The Gameboy cycles this many times per second. This is the
 # measurement of time we use in our TIME_OFFSET values
@@ -288,13 +288,17 @@ def create_data_split(paths, window_size=MAX_WINDOW_SIZE, start_at_sample=True):
 
 
 class SampleDataset(torch.utils.data.IterableDataset):
-    def __init__(self, path, window_size, start_at_sample=False):
+    def __init__(self, path, window_size, start_at_sample=False, max_files=None):
         super(SampleDataset).__init__()
         files = training_files(path)
 
         print("Training files: ")
         for filename in files:
             print(filename)
+
+        if max_files is not None:
+            idx = random.randint(0, len(files) - max_files)
+            files = files[idx : idx + max_files]
 
         # Add one to window_size so that we have window size labels and inputs
         self.loader = create_data_split(

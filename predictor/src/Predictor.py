@@ -65,16 +65,16 @@ model_dir = args.model_dir
 def train_from(path):
     # Create a standard data loader from our samples
     loader = torch.utils.data.DataLoader(
-        SampleDataset(training_data, window_size=MAX_WINDOW_SIZE),
-        num_workers=2,
-        batch_size=4,
+        SampleDataset(training_data, window_size=MAX_WINDOW_SIZE, start_at_sample=True),
+        num_workers=1,
+        batch_size=1,
         prefetch_factor=128,
         pin_memory=True,
         persistent_workers=True,
     )
 
     test_loader = torch.utils.data.DataLoader(
-        SampleDataset(test_data, window_size=MAX_WINDOW_SIZE),
+        SampleDataset(test_data, window_size=MAX_WINDOW_SIZE, start_at_sample=True),
         num_workers=1,
         batch_size=1,
         prefetch_factor=128,
@@ -97,7 +97,7 @@ def generate_from(path):
     # training, which is why this is a flag.
     out_of_sample_loader = torch.utils.data.DataLoader(
         SampleDataset(
-            test_data, window_size=MAX_WINDOW_SIZE * 100, start_at_sample=True
+            test_data, window_size=MAX_WINDOW_SIZE, start_at_sample=True, max_files=1
         )
     )
 
