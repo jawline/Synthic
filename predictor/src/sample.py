@@ -7,10 +7,6 @@ import torch
 import shutil
 
 
-class SampleSize(Exception):
-    pass
-
-
 # These commands enumerate the different kind of instruction we can send to each channel.
 # Note: not every command is legal for every channel, invalid commands will be ignored.
 CMD_VOLENVPER = 1
@@ -29,7 +25,7 @@ PARAM3_OFFSET = 5
 SIZE_OF_INPUT_FIELDS = 6
 
 # The maximum number of samples we will send to the model in a single iteration
-MAX_WINDOW_SIZE = 512
+MAX_WINDOW_SIZE = 256
 
 # The Gameboy cycles this many times per second. This is the
 # measurement of time we use in our TIME_OFFSET values
@@ -227,100 +223,91 @@ def load_raw_data(src, window_size):
     return torch.Tensor(sample_data).long()
 
 
-def samples_from_training_data(sample_data, window_size, start_at_sample):
-
-    # Scale the window size by the bytes per entry
-    window_size = window_size * BYTES_PER_ENTRY
-
-    while True:
-
-        start_idx = 0
-        if len(sample_data) < window_size:
-            raise SampleSize()
-        else:
-            # Sample a random window from the audio file
-            high = len(sample_data) - window_size
-            start_idx = np.random.randint(0, high)
-
-        # If we should start on a sample boundary then round to the nearest multiple of sample boundary from the start
-        if start_at_sample:
-            start_idx = BYTES_PER_ENTRY * round(start_idx / BYTES_PER_ENTRY)
-
-        sample = sample_data[start_idx : (start_idx + window_size)]
-
-        yield sample
-
-
-def create_batch_generator(paths, window_size, start_at_sample):
-
-    streamers = []
-
-    for path in paths:
-        print("Loading ", path)
-        try:
-            streamers.append(load_raw_data(path, window_size))
-        except Exception as e:
-            print("Caught and ignoring file exception: ", e)
-
-    streamers = [
-        samples_from_training_data(sample_data, window_size, start_at_sample)
-        for sample_data in streamers
-    ]
-
-    print("Done loading streams")
-
-    while True:
-        stream = random.randrange(0, len(streamers))
-        yield next(streamers[stream])
-
-
-def training_files(dirp):
-    return [
-        os.path.join(root, fname)
-        for (root, dir_names, file_names) in os.walk(dirp, followlinks=True)
-        for fname in file_names
-    ]
-
-
-def create_data_split(paths, window_size=MAX_WINDOW_SIZE, start_at_sample=True):
-    train_gen = create_batch_generator(paths, window_size, start_at_sample)
-    return train_gen
-
-
 class SampleDataset(torch.utils.data.IterableDataset):
     def __init__(self, path, window_size, start_at_sample=False, max_files=None):
         super(SampleDataset).__init__()
-        files = training_files(path)
+        files = self.training_files(path)
 
         print("Training files: ")
         for filename in files:
             print(filename)
 
+        # Select a random set of files if max_files is set
         if max_files is not None:
-            idx = random.randint(0, len(files) - max_files)
-            files = files[idx : idx + max_files]
+            random.shuffle(files)
+            files = files[0:max_files]
 
-        # Add one to window_size so that we have window size labels and inputs
-        self.loader = create_data_split(
-            files, window_size=MAX_WINDOW_SIZE + 1, start_at_sample=start_at_sample
-        )
+        # Load the files and convert them to the model encoding
+        self.window_size = window_size
+        self.file_datas = self.load_sample_files(files)
 
         print("Created the loader")
 
-    def __iter__(self):
-        while True:
-            start = time.perf_counter()
+    def training_files(self, dirp):
+        return [
+            os.path.join(root, fname)
+            for (root, dir_names, file_names) in os.walk(dirp, followlinks=True)
+            for fname in file_names
+        ]
+
+    def load_sample_files(self, files):
+        file_datas = []
+
+        for file in files:
+            print("Loading ", file)
             try:
-                nv = next(self.loader)
-                yield nv
-            except StopIteration:
-                print("StopIter?")
-                return
-            except SampleSize as e:
-                print("Sample size error")
-                pass
-            end = time.perf_counter()
-            # print(end - start)
+                file_datas.append((file, load_raw_data(file, self.window_size)))
+            except Exception as e:
+                print("Caught and ignoring file exception: ", e)
+
+        print("Done loading streams")
+
+        return file_datas
+
+    def random_start_offset(self, sample_data):
+
+        # Randomly start from a offset in window size to change the interleaving of data
+        # at each pass of the file
+        start_idx = np.random.randint(0, self.window_size)
+
+        # print("Skipping: ", start_idx)
+        # print("Start offset: ", BYTES_PER_ENTRY * start_idx)
+
+        return sample_data[BYTES_PER_ENTRY * start_idx :]
+
+    def __iter__(self):
+        print("Iterating over dataset")
+
+        idx = 0
+
+        random.shuffle(self.file_datas)
+        print("Shuffled dataset for epoch")
+
+        for (name, data) in self.file_datas:
+
+            idx += 1
+            data = self.random_start_offset(data)
+            total_samples = data.shape[0] / BYTES_PER_ENTRY
+            window_in_bytes = self.window_size * BYTES_PER_ENTRY
+            rounds = int((total_samples - self.window_size) / self.window_size)
+
+            if idx % (len(self.file_datas) / 10) == 0:
+                print("Epoch %", (idx / len(self.file_datas)) * 100)
+
+            # print("Iterating over: ", name)
+            # print("Total samples: ", total_samples)
+            # print("Rounds: ", rounds)
+
+            for round_idx in range(rounds):
+                next_offset = round_idx * window_in_bytes
+                # print("Round: ", round_idx)
+                # print(
+                #    "Offset into sample data: ",
+                #    next_offset,
+                #    " to ",
+                #    next_offset + window_in_bytes,
+                # )
+                yield data[next_offset : next_offset + window_in_bytes]
 
 
 def copy_file(src_file, dst_dir):

@@ -28,6 +28,7 @@ class EarlyExit:
         print("Mean validation loss: ", mean_loss)
 
         if mean_loss is None:
+            self.append_loss(loss)
             return
 
         if loss > mean_loss:
@@ -40,13 +41,9 @@ class EarlyExit:
             raise Exception("early exit because validation loss stopped going down")
 
 
-ROUND_SZ = 1000
-VALIDATION_SZ = 500
-
-
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
 
-    early_exit = EarlyExit(4)
+    early_exit = EarlyExit(32)
 
     cpu = torch.device("cpu")
 
@@ -58,25 +55,20 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
     if load_path != None:
         path = model_dir + load_path
 
-    command_generator, optimizer, scheduler = load_fn(path, device)
+    command_generator, optimizer, scheduler_base, scheduler_step = load_fn(path, device)
     criterion = nn.CrossEntropyLoss()
     running_loss = torch.zeros(1, device=device)
 
-    print("Next data loader")
-    data_loader = iter(data_loader)
-    validation_loader = iter(validation_loader)
-
-    def step(ldr, sz, backprop):
+    def step(ldr, backprop):
 
         print("Starting batch")
         running_loss.zero_()
 
-        for i in range(sz):
+        count = 0
 
-            if i % (sz / 4) == 0:
-                print("Batch completion:", (float(i) / float(sz)) * 100.0, "%")
+        for seq in iter(ldr):
 
-            seq = next(ldr).to(device)
+            seq = seq.to(device)
             inputs = seq[:, :-BYTES_PER_ENTRY]
             labels = seq[:, BYTES_PER_ENTRY:]
 
@@ -91,9 +83,9 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
                 optimizer.step()
             running_loss.add_(loss.detach())
 
-            seq = seq.detach().to(cpu)
+            count += 1
 
-        result = running_loss / sz
+        result = running_loss / count
         return result
 
     def save(name):
@@ -108,13 +100,14 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
         print("Pre-step LR:", optimizer.param_groups[0]["lr"])
 
         # Do a ROUND_SZ of training and backprop
-        loss = step(data_loader, ROUND_SZ, True)
-
-        # Feed the current epoch and loss (1-indexed not 0-indexed) into our scheduler function to adjust the LR
-        scheduler.step(loss)
+        loss = step(data_loader, True)
 
         # Do a round 10 of validation with no backprop
-        validation_loss = step(validation_loader, VALIDATION_SZ, False)
+        validation_loss = step(validation_loader, False)
+
+        # Update scheduler based on validation loss
+        scheduler_step.step()
+        scheduler_base.step(validation_loss)
 
         early_exit.update(validation_loss.item())
 

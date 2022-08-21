@@ -65,7 +65,7 @@ def generate_a_song(loader, load_fn, path, device):
     cpu = torch.device("cpu")
 
     # Load an instance of the model
-    command_generator, _, _ = load_fn(path, device)
+    command_generator, _, _, _ = load_fn(path, device)
     command_generator = command_generator.eval()
 
     # Prepare a seed input from the data loader
