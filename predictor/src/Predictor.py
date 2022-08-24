@@ -51,6 +51,7 @@ parser.add_argument("--model-dir", required=True)
 parser.add_argument("--training-data", required=True)
 parser.add_argument("--test-data", required=True)
 parser.add_argument("--source-dir", required=False)
+parser.add_argument("--output-path", required=False)
 
 args = parser.parse_args()
 
@@ -62,25 +63,25 @@ test_data = args.test_data
 model_dir = args.model_dir
 
 
-def train_from(path):
-    # Create a standard data loader from our samples
-    loader = torch.utils.data.DataLoader(
-        SampleDataset(training_data, window_size=MAX_WINDOW_SIZE, start_at_sample=True),
+def load_a_dataset(path):
+    return torch.utils.data.DataLoader(
+        SampleDataset(path, window_size=MAX_WINDOW_SIZE, start_at_sample=True),
         num_workers=1,
         batch_size=1,
+        pin_memory=True,
     )
 
-    test_loader = torch.utils.data.DataLoader(
-        SampleDataset(test_data, window_size=MAX_WINDOW_SIZE, start_at_sample=True),
-        num_workers=1,
-        batch_size=1,
-    )
+
+def train_from(path):
+    # Create a standard data loader from our samples
+    loader = load_a_dataset(training_data)
+    test_loader = load_a_dataset(test_data)
 
     # Train a model with the data loader
     train(loader, test_loader, model, model_dir, path, device)
 
 
-def generate_from(path):
+def generate_from(model_path, output_path):
 
     # This loader is used as a seed to the NN and needs to
     # start on a complete sample (start_at_sample=True)
@@ -96,7 +97,9 @@ def generate_from(path):
     )
 
     # Generate a song using the out of sample loader
-    generate_a_song(out_of_sample_loader, model, model_dir + path, device)
+    generate_a_song(
+        out_of_sample_loader, model, model_dir + model_path, device, output_path
+    )
 
 
 if mode == "fresh":
@@ -104,7 +107,8 @@ if mode == "fresh":
 elif mode == "train":
     train_from("last.checkpoint")
 elif mode == "generate":
-    generate_from("last.checkpoint")
+    assert args.output_path is not None
+    generate_from("last.checkpoint", args.output_path)
 elif mode == "split_data":
     split_training_dir_into_training_and_test_dir(
         args.source_dir, training_data, test_data

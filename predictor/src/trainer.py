@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 
 import torch
@@ -67,15 +68,17 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
         count = 0
 
         for seq in iter(ldr):
-
             seq = seq.to(device)
             inputs = seq[:, :-BYTES_PER_ENTRY]
             labels = seq[:, BYTES_PER_ENTRY:]
 
+            # print(inputs.shape)
+            # print(labels.shape)
+
             optimizer.zero_grad()
-            logits = command_generator(inputs)
 
             with torch.cuda.amp.autocast():
+                logits = command_generator(inputs)
                 loss = criterion(logits, labels)
 
             if backprop:
@@ -101,9 +104,11 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         # Do a ROUND_SZ of training and backprop
         loss = step(data_loader, True)
+        assert loss.item() != math.nan
 
         # Do a round 10 of validation with no backprop
         validation_loss = step(validation_loader, False)
+        assert validation_loss.item() != math.nan
 
         # Update scheduler based on validation loss
         scheduler_step.step()

@@ -25,7 +25,7 @@ PARAM3_OFFSET = 5
 SIZE_OF_INPUT_FIELDS = 6
 
 # The maximum number of samples we will send to the model in a single iteration
-MAX_WINDOW_SIZE = 256
+MAX_WINDOW_SIZE = 1024
 
 # The Gameboy cycles this many times per second. This is the
 # measurement of time we use in our TIME_OFFSET values
@@ -273,7 +273,7 @@ class SampleDataset(torch.utils.data.IterableDataset):
         # print("Skipping: ", start_idx)
         # print("Start offset: ", BYTES_PER_ENTRY * start_idx)
 
-        return sample_data[BYTES_PER_ENTRY * start_idx :]
+        return sample_data[start_idx:]
 
     def __iter__(self):
         print("Iterating over dataset")
@@ -286,28 +286,30 @@ class SampleDataset(torch.utils.data.IterableDataset):
         for (name, data) in self.file_datas:
 
             idx += 1
+            data = data.reshape((-1, BYTES_PER_ENTRY))
             data = self.random_start_offset(data)
-            total_samples = data.shape[0] / BYTES_PER_ENTRY
-            window_in_bytes = self.window_size * BYTES_PER_ENTRY
-            rounds = int((total_samples - self.window_size) / self.window_size)
-
-            if idx % (len(self.file_datas) / 10) == 0:
-                print("Epoch %", (idx / len(self.file_datas)) * 100)
+            total_samples = data.shape[0]
+            rounds = int(total_samples / self.window_size)
 
             # print("Iterating over: ", name)
             # print("Total samples: ", total_samples)
             # print("Rounds: ", rounds)
 
+            if idx % (total_samples / 10) == 0:
+                print("Epoch %", (float(idx) / float(total_samples)) * 100)
+
             for round_idx in range(rounds):
-                next_offset = round_idx * window_in_bytes
                 # print("Round: ", round_idx)
-                # print(
-                #    "Offset into sample data: ",
-                #    next_offset,
-                #    " to ",
-                #    next_offset + window_in_bytes,
-                # )
-                yield data[next_offset : next_offset + window_in_bytes]
+
+                # Select one additional sample for the output we are predicting.
+                start_index_in_samples = round_idx
+                end_index_in_samples = round_idx + self.window_size + 1
+
+                next_data = data[start_index_in_samples:end_index_in_samples].reshape(
+                    (-1)
+                )
+
+                yield next_data
 
 
 def copy_file(src_file, dst_dir):

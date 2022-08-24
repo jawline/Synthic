@@ -46,12 +46,12 @@ def nearest_multiple(x, base):
     return base * round(x / base)
 
 
-def prepare_seed(loader, command_generator, device):
+def prepare_seed(loader, command_generator, device, output_path):
 
     seed = next(iter(loader))[0]
 
     # Write the seed values out to a file for debugging
-    with open("seed.txt", "w") as f:
+    with open(output_path + "/seed.txt", "w") as f:
         for i in range(0, len(seed), BYTES_PER_ENTRY):
             cmd = command_of_bytes(seed[i : i + BYTES_PER_ENTRY])
             print_feature(cmd, file=f)
@@ -59,7 +59,7 @@ def prepare_seed(loader, command_generator, device):
     return MovingWindow(seed, device)
 
 
-def generate_a_song(loader, load_fn, path, device):
+def generate_a_song(loader, load_fn, path, device, output_path):
 
     # A convenience reference to the CPU
     cpu = torch.device("cpu")
@@ -69,9 +69,9 @@ def generate_a_song(loader, load_fn, path, device):
     command_generator = command_generator.eval()
 
     # Prepare a seed input from the data loader
-    window = prepare_seed(loader, command_generator, device)
+    window = prepare_seed(loader, command_generator, device, output_path)
 
-    with open("output.txt", "w") as f:
+    with open(output_path + "/output.txt", "w") as f:
         for i in range(BYTES_PER_ENTRY * 10000):
 
             # We predict the full word of music (7 bytes) at once.

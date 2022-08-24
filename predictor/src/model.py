@@ -98,7 +98,7 @@ class PermutedFeedForward(nn.Module):
         self.layer = nn.Sequential(
             *[
                 nn.Linear(dim, feed_forward_dim),
-                nn.ReLU(),  # TODO: Play with different activations?
+                nn.Sigmoid(),  # TODO: Play with different activations?
                 nn.Dropout(dropout),
                 nn.Linear(feed_forward_dim, dim),
             ]
@@ -135,7 +135,7 @@ class AttentionBlock(nn.Module):
         self.v = nn.Linear(dim, dim)
         self.attn = LocalAttention(
             dim=dim,
-            window_size=512,
+            window_size=256,
             causal=True,
             look_backward=1,
             look_forward=0,
@@ -158,9 +158,9 @@ before using a self attention layer since the conv representation is (batch_sz, 
 """
 
 
-class PermutedResidualAttentionBlock(nn.Module):
+class PermutedAttentionBlock(nn.Module):
     def __init__(self, dim):
-        super(PermutedResidualAttentionBlock, self).__init__()
+        super(PermutedAttentionBlock, self).__init__()
         self.attn = AttentionBlock(dim)
 
     def forward(self, x):
@@ -209,10 +209,9 @@ batch normalizing the output.
 """
 
 
-def AttentionModelLayer(dim, qkv_dim, hfactor, batch_norm, layer_dropout):
-    # TODO: Use qkv dim
-    causal = PermutedResidualAttentionBlock(dim)
-    forward = PermutedFeedForward(dim, 2048, layer_dropout)
+def AttentionModelLayer(dim, hfactor, batch_norm, layer_dropout):
+    causal = PermutedAttentionBlock(dim)
+    forward = PermutedFeedForward(dim, 1024, layer_dropout)
     return ModelLayer(dim, causal, forward, batch_norm, layer_dropout)
 
 
@@ -232,10 +231,9 @@ class GameboyNet(nn.Module):
     def __init__(
         self,
         dim=256,
-        qkv_dim=256,
         num_blocks=1,
         layer_spec=[
-            item for sublist in [["attention" for i in range(10)]] for item in sublist
+            item for sublist in [["attention" for i in range(35)]] for item in sublist
         ],
         hfactor=4,
         layer_dropout=0,
@@ -259,7 +257,6 @@ class GameboyNet(nn.Module):
             if spec == "attention":
                 return AttentionModelLayer(
                     dim=dim,
-                    qkv_dim=dim,
                     hfactor=hfactor,
                     batch_norm=batch_norm,
                     layer_dropout=layer_dropout,
@@ -346,19 +343,19 @@ saved on disk if [path] is a string.
 
 def load_model(model, path, device):
 
-    default_lr = 0.1
+    default_lr = 0.00001
 
-    # optimizer = optim.AdamW(
-    #    model.parameters(),
-    #    lr=default_lr,
-    # )
-
-    optimizer = optim.SGD(
-        model.parameters(), lr=default_lr, momentum=0.9, nesterov=True
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=default_lr,
     )
 
+    # optimizer = optim.SGD(
+    #    model.parameters(), lr=default_lr, momentum=0.9, nesterov=True
+    # )
+
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", factor=0.9, min_lr=0.0000000001, patience=1
+        optimizer, "min", factor=0.9, min_lr=0.0000000001, patience=4
     )
 
     scheduler_step = optim.lr_scheduler.StepLR(optimizer, step_size=30000, gamma=0.9)
@@ -378,7 +375,7 @@ def load_model(model, path, device):
             optimizer,
             start_lr=0.00000001,
             end_lr=default_lr,
-            num_steps=2,
+            num_steps=4,
             criterion=lr_criterion,
             underlying_scheduler=scheduler,
             pass_through_loss_to_underlying=True,
