@@ -82,7 +82,7 @@ class Pointwise(nn.Module):
 
         layers = [
             nn.Conv1d(dim, expanded_dim, 1),
-            nn.Sigmoid(),
+            nn.ReLU(),
             nn.Conv1d(expanded_dim, dim, 1),
         ]
 
@@ -98,7 +98,7 @@ class PermutedFeedForward(nn.Module):
         self.layer = nn.Sequential(
             *[
                 nn.Linear(dim, feed_forward_dim),
-                nn.Sigmoid(),  # TODO: Play with different activations?
+                nn.ReLU(),  # TODO: Play with different activations?
                 nn.Dropout(dropout),
                 nn.Linear(feed_forward_dim, dim),
             ]
@@ -135,7 +135,7 @@ class AttentionBlock(nn.Module):
         self.v = nn.Linear(dim, dim)
         self.attn = LocalAttention(
             dim=dim,
-            window_size=256,
+            window_size=512,
             causal=True,
             look_backward=1,
             look_forward=0,
@@ -211,7 +211,7 @@ batch normalizing the output.
 
 def AttentionModelLayer(dim, hfactor, batch_norm, layer_dropout):
     causal = PermutedAttentionBlock(dim)
-    forward = PermutedFeedForward(dim, 1024, layer_dropout)
+    forward = PermutedFeedForward(dim, 2048, layer_dropout)
     return ModelLayer(dim, causal, forward, batch_norm, layer_dropout)
 
 
@@ -233,7 +233,7 @@ class GameboyNet(nn.Module):
         dim=256,
         num_blocks=1,
         layer_spec=[
-            item for sublist in [["attention" for i in range(35)]] for item in sublist
+            item for sublist in [["attention" for i in range(20)]] for item in sublist
         ],
         hfactor=4,
         layer_dropout=0,
@@ -375,7 +375,7 @@ def load_model(model, path, device):
             optimizer,
             start_lr=0.00000001,
             end_lr=default_lr,
-            num_steps=4,
+            num_steps=2,
             criterion=lr_criterion,
             underlying_scheduler=scheduler,
             pass_through_loss_to_underlying=True,

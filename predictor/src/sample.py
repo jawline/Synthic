@@ -25,7 +25,7 @@ PARAM3_OFFSET = 5
 SIZE_OF_INPUT_FIELDS = 6
 
 # The maximum number of samples we will send to the model in a single iteration
-MAX_WINDOW_SIZE = 1024
+MAX_WINDOW_SIZE = 256
 
 # The Gameboy cycles this many times per second. This is the
 # measurement of time we use in our TIME_OFFSET values
@@ -217,7 +217,7 @@ def load_raw_data(src, window_size):
 
     # If the sample is less than the window size then ignore it
     # TODO: Left pad again?
-    if len(sample_data) < (window_size * BYTES_PER_ENTRY) * 2:
+    if len(sample_data) < (window_size * BYTES_PER_ENTRY):
         raise Exception("Bad file")
 
     return torch.Tensor(sample_data).long()
@@ -238,6 +238,7 @@ class SampleDataset(torch.utils.data.IterableDataset):
             files = files[0:max_files]
 
         # Load the files and convert them to the model encoding
+        self.start_at_sample = start_at_sample
         self.window_size = window_size
         self.file_datas = self.load_sample_files(files)
 
@@ -256,7 +257,8 @@ class SampleDataset(torch.utils.data.IterableDataset):
         for file in files:
             print("Loading ", file)
             try:
-                file_datas.append((file, load_raw_data(file, self.window_size)))
+                new_file_data = load_raw_data(file, self.window_size)
+                file_datas.append((file, new_file_data))
             except Exception as e:
                 print("Caught and ignoring file exception: ", e)
 
@@ -265,77 +267,33 @@ class SampleDataset(torch.utils.data.IterableDataset):
         return file_datas
 
     def random_start_offset(self, sample_data):
+        def lround(x):
+            return int(7 * round(float(x) / 7))
 
-        # Randomly start from a offset in window size to change the interleaving of data
-        # at each pass of the file
-        start_idx = np.random.randint(0, self.window_size)
+        bytes_per_window_size = BYTES_PER_ENTRY * self.window_size
+        max_start_index = sample_data.shape[0] - bytes_per_window_size
 
-        # print("Skipping: ", start_idx)
-        # print("Start offset: ", BYTES_PER_ENTRY * start_idx)
+        start_idx = np.random.randint(0, max_start_index)
 
-        return sample_data[start_idx:]
+        if self.start_at_sample:
+            start_idx = lround(start_idx)
+
+        end_idx = start_idx + bytes_per_window_size
+
+        return sample_data[start_idx : start_idx + bytes_per_window_size]
 
     def __iter__(self):
-        print("Iterating over dataset")
 
-        idx = 0
-
-        random.shuffle(self.file_datas)
-        print("Shuffled dataset for epoch")
+        epoch_data = []
 
         for (name, data) in self.file_datas:
+            for _i in range(4):
+                next_step_data = self.random_start_offset(data)
+                epoch_data.append(next_step_data)
 
-            idx += 1
-            data = data.reshape((-1, BYTES_PER_ENTRY))
-            data = self.random_start_offset(data)
-            total_samples = data.shape[0]
-            rounds = int(total_samples / self.window_size)
+        random.shuffle(epoch_data)
 
-            # print("Iterating over: ", name)
-            # print("Total samples: ", total_samples)
-            # print("Rounds: ", rounds)
+        print("Iterating over", len(epoch_data), "random samples from the dataset")
 
-            if idx % (total_samples / 10) == 0:
-                print("Epoch %", (float(idx) / float(total_samples)) * 100)
-
-            for round_idx in range(rounds):
-                # print("Round: ", round_idx)
-
-                # Select one additional sample for the output we are predicting.
-                start_index_in_samples = round_idx
-                end_index_in_samples = round_idx + self.window_size + 1
-
-                next_data = data[start_index_in_samples:end_index_in_samples].reshape(
-                    (-1)
-                )
-
-                yield next_data
-
-
-def copy_file(src_file, dst_dir):
-    os.makedirs(dst_dir + "/" + os.path.dirname(src_file), exist_ok=True)
-    shutil.copyfile(src_file, dst_dir + "/" + src_file)
-
-
-def split_training_dir_into_training_and_test_dir(
-    in_dir, out_dir_training, out_dir_testing
-):
-    files = [
-        os.path.join(root, fname)
-        for (root, dir_names, file_names) in os.walk(in_dir, followlinks=True)
-        for fname in file_names
-    ]
-    print("80/20 split of: " + str(len(files)) + " files")
-
-    random.shuffle(files)
-
-    num_files_train = int(len(files) * 0.8)
-
-    train_files = files[0:num_files_train]
-    test_files = files[num_files_train:]
-
-    for f in train_files:
-        copy_file(f, out_dir_training)
-
-    for f in test_files:
-        copy_file(f, out_dir_testing)
+        for data in epoch_data:
+            yield data

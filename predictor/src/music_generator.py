@@ -72,27 +72,31 @@ def generate_a_song(loader, load_fn, path, device, output_path):
     window = prepare_seed(loader, command_generator, device, output_path)
 
     with open(output_path + "/output.txt", "w") as f:
+
         for i in range(BYTES_PER_ENTRY * 10000):
 
-            # We predict the full word of music (7 bytes) at once.
-            preds = command_generator.predict(window.window().unsqueeze(0)).detach()
-            preds = preds[0][-BYTES_PER_ENTRY:]
+            with torch.cuda.amp.autocast():
+                preds = command_generator.predict(window.window().unsqueeze(0)).detach()
+            preds = preds[0][-1:]
 
             for pred in preds:
                 pred = Categorical(logits=pred).sample()
                 window.append(pred)
 
-            try:
-                last_sample = (
-                    window.window()[-BYTES_PER_ENTRY:]
-                    .detach()
-                    .cpu()
-                    .numpy()
-                    .astype(np.uint8)
-                )
-                print(last_sample)
-                last_sample = command_of_bytes(last_sample)
-                print_feature(last_sample, file=f)
-            except BaseException as err:
-                print("pred was not valid because:", err)
-                raise Exception("predictions stopped looking valid")
+            should_output_sample = (i + 1) % BYTES_PER_ENTRY == 0
+
+            if should_output_sample:
+                try:
+                    last_sample = (
+                        window.window()[-BYTES_PER_ENTRY:]
+                        .detach()
+                        .cpu()
+                        .numpy()
+                        .astype(np.uint8)
+                    )
+                    print(last_sample)
+                    last_sample = command_of_bytes(last_sample)
+                    print_feature(last_sample, file=f)
+                except BaseException as err:
+                    print("pred was not valid because:", err)
+                    raise Exception("predictions stopped looking valid")

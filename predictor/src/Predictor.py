@@ -17,8 +17,9 @@ import numpy as np
 from sample import (
     SampleDataset,
     MAX_WINDOW_SIZE,
-    split_training_dir_into_training_and_test_dir,
 )
+
+from training_data import split_training_dir_into_training_and_test_dir
 from model import load_gameboy_net
 from trainer import train
 from music_generator import generate_a_song
@@ -65,10 +66,9 @@ model_dir = args.model_dir
 
 def load_a_dataset(path):
     return torch.utils.data.DataLoader(
-        SampleDataset(path, window_size=MAX_WINDOW_SIZE, start_at_sample=True),
+        SampleDataset(path, window_size=MAX_WINDOW_SIZE, start_at_sample=False),
         num_workers=1,
-        batch_size=1,
-        pin_memory=True,
+        batch_size=4,
     )
 
 

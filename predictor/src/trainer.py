@@ -2,7 +2,7 @@ import math
 from datetime import datetime
 
 import torch
-from torch.cuda.amp import autocast
+from torch.cuda.amp import autocast, GradScaler
 from torch import nn
 
 from sample import MAX_WINDOW_SIZE, BYTES_PER_ENTRY
@@ -42,6 +42,9 @@ class EarlyExit:
             raise Exception("early exit because validation loss stopped going down")
 
 
+scaler = GradScaler()
+
+
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
 
     early_exit = EarlyExit(32)
@@ -69,22 +72,24 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         for seq in iter(ldr):
             seq = seq.to(device)
-            inputs = seq[:, :-BYTES_PER_ENTRY]
-            labels = seq[:, BYTES_PER_ENTRY:]
+            inputs = seq[:, :-1]
+            labels = seq[:, 1:]
 
             # print(inputs.shape)
             # print(labels.shape)
-
-            optimizer.zero_grad()
 
             with torch.cuda.amp.autocast():
                 logits = command_generator(inputs)
                 loss = criterion(logits, labels)
 
-            if backprop:
-                loss.backward()
-                optimizer.step()
             running_loss.add_(loss.detach())
+
+            if backprop:
+                scaler.scale(loss).backward()
+                # torch.nn.utils.clip_grad_norm_(command_generator.parameters(), max_norm)
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad()
 
             count += 1
 
@@ -123,7 +128,7 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
         print("Saving checkpoint")
 
         # Timestamp every 10th epoch to test fits later
-        if epoch % 3 == 0:
+        if epoch % 10 == 0:
             save(model_dir + "/" + str(int(datetime.now().timestamp())))
 
         save(model_dir + "/last.checkpoint")
