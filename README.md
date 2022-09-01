@@ -101,7 +101,7 @@ predictor/src/Predictor.py --mode split_data --source-dir ./pruned/
 --training-data ~/scratch/training-data/ --test-data ~/scratch/test_data/
 --model-dir ./local.model/`
 
-TLDR; `./scripts/play_and_record_all <roms dir> && ./scripts/prune_all &&
+**TLDR;** `./scripts/play_and_record_all <roms dir> && ./scripts/prune_all &&
 python3 predictor/src/Predictor.py --mode split_data --source-dir ./pruned/
 --training-data ~/scratch/training-data/ --test-data ~/scratch/test_data/
 --model-dir ./local.model/`
@@ -114,7 +114,7 @@ run `python3 predictor/src/Predictor.py --mode fresh --training-data
 ./local.model/ --output-path /tmp/` and wait for the training to terminate,
 which will happen automatically when testing loss stops going down.
 
-TLDR; `python3 predictor/src/Predictor.py --mode fresh --training-data
+**TLDR;** `python3 predictor/src/Predictor.py --mode fresh --training-data
 ~/scratch/training-data --test-data ~/scratch/test_data --model-dir
 ./local.model/ --output-path /tmp/`
 
@@ -129,8 +129,8 @@ convenient the script `./scripts/generate_in_a_loop` can be run to generate
 lots of random songs by seeding the generator with a random sample from
 something in our testing data set.
 
-TLDR; `./scripts/generate_in_a_loop`
+**TLDR;** `./scripts/generate_in_a_loop`
 
 #### Converting recordings to WAV files
 
-TLDR; `./scripts/convert_all_to_wav  ./samples /tmp/out`
+**TLDR;** `./scripts/convert_all_to_wav  ./samples /tmp/out`
