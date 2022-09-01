@@ -12,7 +12,7 @@ which randomly explores games at more than 50x real-time. The modeling and
 prediction work uses a Torch based Python code base and the remaining utilities
 are written in Rust.
 
-TLDR; Visit [this samples site](https://dev.parsed.dev/wav_samples/) for to
+**TLDR;** Visit [this samples site](https://dev.parsed.dev/wav_samples/) for to
 listen to a set of computer generated Gameboy songs.
 
 ### Overview 
