@@ -1,10 +1,14 @@
 use clap::{AppSettings, Clap};
 use std::error::Error;
+use std::fs::remove_file;
 use std::sync::mpsc;
 
 use hound;
 
 use gb_int::encoded_file::*;
+
+const MIN_SECONDS: f64 = 5.;
+const MAX_SECONDS: f64 = 120.;
 
 /// This doc string acts as a help message when the user runs '--help'
 /// as do all doc strings on fields
@@ -33,14 +37,48 @@ fn main() -> Result<(), Box<dyn Error>> {
     sample_format: hound::SampleFormat::Int,
   };
 
-  let mut writer = hound::WavWriter::create(opts.output, wav_spec)?;
+  let mut writer = hound::WavWriter::create(opts.output.clone(), wav_spec)?;
 
-  to_wave(&instructions, sound_tx, sample_rate, || {
+  let mut min_sample = i16::MAX;
+  let mut max_sample = i16::MIN;
+  let mut samples = 0;
+
+  let mut seconds_of_audio = 0.;
+
+  let res = to_wave(&instructions, sound_tx, sample_rate, || {
     while let Ok(sample) = sound_rx.try_recv() {
-      writer.write_sample((sample * (i16::MAX as f32)) as i16)?;
+      let sample = (sample * (i16::MAX as f32)) as i16;
+      max_sample = std::cmp::max(sample, max_sample);
+      min_sample = std::cmp::min(sample, min_sample);
+      samples += 1;
+      seconds_of_audio = samples as f64 / sample_rate as f64;
+      writer.write_sample(sample)?;
     }
+
+    // Early exit at MAX_SECONDS to avoid burning CPU.
+    if seconds_of_audio > MAX_SECONDS {
+      use std::io::{Error, ErrorKind};
+      Err(Error::new(ErrorKind::Other, "hit max seconds"))?;
+    }
+
     Ok(())
-  })?;
+  });
+
+  // Delete the file on error.
+  match res {
+    Ok(()) => (),
+    Err(_) => {
+      println!("Deleting output file on error");
+      remove_file(opts.output.clone())?
+    }
+  };
+
+  println!("{} seconds of audio", seconds_of_audio);
+
+  if seconds_of_audio < MIN_SECONDS || seconds_of_audio > MAX_SECONDS {
+    println!("Sample failed quality heuristics. Deleting");
+    remove_file(opts.output)?;
+  }
 
   println!("Written");
 
