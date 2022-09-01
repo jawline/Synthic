@@ -137,7 +137,7 @@ class AttentionBlock(nn.Module):
             dim=dim,
             window_size=512,
             causal=True,
-            look_backward=1,
+            look_backward=5,
             look_forward=0,
             dropout=0.1,
             autopad=True,
@@ -211,7 +211,7 @@ batch normalizing the output.
 
 def AttentionModelLayer(dim, hfactor, batch_norm, layer_dropout):
     causal = PermutedAttentionBlock(dim)
-    forward = PermutedFeedForward(dim, 2048, layer_dropout)
+    forward = PermutedFeedForward(dim, 1024, layer_dropout)
     return ModelLayer(dim, causal, forward, batch_norm, layer_dropout)
 
 
@@ -233,7 +233,7 @@ class GameboyNet(nn.Module):
         dim=256,
         num_blocks=1,
         layer_spec=[
-            item for sublist in [["attention" for i in range(20)]] for item in sublist
+            item for sublist in [["attention" for i in range(7)]] for item in sublist
         ],
         hfactor=4,
         layer_dropout=0,
@@ -343,7 +343,7 @@ saved on disk if [path] is a string.
 
 def load_model(model, path, device):
 
-    default_lr = 0.00001
+    default_lr = 0.0001
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -355,7 +355,7 @@ def load_model(model, path, device):
     # )
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", factor=0.9, min_lr=0.0000000001, patience=4
+        optimizer, "min", factor=0.9, min_lr=0.00000001, patience=1
     )
 
     scheduler_step = optim.lr_scheduler.StepLR(optimizer, step_size=30000, gamma=0.9)
@@ -375,7 +375,7 @@ def load_model(model, path, device):
             optimizer,
             start_lr=0.00000001,
             end_lr=default_lr,
-            num_steps=2,
+            num_steps=8,
             criterion=lr_criterion,
             underlying_scheduler=scheduler,
             pass_through_loss_to_underlying=True,

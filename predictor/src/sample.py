@@ -5,7 +5,7 @@ import time
 import random
 import torch
 import shutil
-
+from termcolor import colored
 
 # These commands enumerate the different kind of instruction we can send to each channel.
 # Note: not every command is legal for every channel, invalid commands will be ignored.
@@ -224,7 +224,14 @@ def load_raw_data(src, window_size):
 
 
 class SampleDataset(torch.utils.data.IterableDataset):
-    def __init__(self, path, window_size, start_at_sample=False, max_files=None):
+    def __init__(
+        self,
+        path,
+        window_size,
+        start_at_sample=False,
+        max_files=None,
+        entire_sample=False,
+    ):
         super(SampleDataset).__init__()
         files = self.training_files(path)
 
@@ -239,6 +246,7 @@ class SampleDataset(torch.utils.data.IterableDataset):
 
         # Load the files and convert them to the model encoding
         self.start_at_sample = start_at_sample
+        self.entire_sample = entire_sample
         self.window_size = window_size
         self.file_datas = self.load_sample_files(files)
 
@@ -271,23 +279,29 @@ class SampleDataset(torch.utils.data.IterableDataset):
             return int(7 * round(float(x) / 7))
 
         bytes_per_window_size = BYTES_PER_ENTRY * self.window_size
-        max_start_index = sample_data.shape[0] - bytes_per_window_size
+        max_start_idx = sample_data.shape[0] - bytes_per_window_size
 
-        start_idx = np.random.randint(0, max_start_index)
+        start_idx = 0
+
+        if max_start_idx != 0:
+            start_idx = np.random.randint(0, max_start_idx)
 
         if self.start_at_sample:
             start_idx = lround(start_idx)
 
         end_idx = start_idx + bytes_per_window_size
 
-        return sample_data[start_idx : start_idx + bytes_per_window_size]
+        if self.entire_sample:
+            return sample_data[start_idx:]
+        else:
+            return sample_data[start_idx : start_idx + bytes_per_window_size]
 
     def __iter__(self):
 
         epoch_data = []
 
         for (name, data) in self.file_datas:
-            for _i in range(4):
+            for _i in range(128):
                 next_step_data = self.random_start_offset(data)
                 epoch_data.append(next_step_data)
 
@@ -295,5 +309,15 @@ class SampleDataset(torch.utils.data.IterableDataset):
 
         print("Iterating over", len(epoch_data), "random samples from the dataset")
 
+        count = 0
         for data in epoch_data:
+            count += 1
+            if count % int(len(epoch_data) / 10) == 0:
+                print(
+                    colored(
+                        "Epoch: " + str((count / len(epoch_data)) * 100) + "%",
+                        "green",
+                        attrs=[],
+                    )
+                )
             yield data

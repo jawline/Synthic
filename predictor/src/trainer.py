@@ -47,7 +47,8 @@ scaler = GradScaler()
 
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
 
-    early_exit = EarlyExit(32)
+    # TODO: Revert
+    early_exit = EarlyExit(3)
 
     cpu = torch.device("cpu")
 

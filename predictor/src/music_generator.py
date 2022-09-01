@@ -3,7 +3,13 @@ from torch.distributions.categorical import Categorical
 
 import numpy as np
 
-from sample import BYTES_PER_ENTRY, command_of_bytes, command_to_bytes, print_feature
+from sample import (
+    BYTES_PER_ENTRY,
+    MAX_WINDOW_SIZE,
+    command_of_bytes,
+    command_to_bytes,
+    print_feature,
+)
 
 """
 This block allocates some linear memory we feed new predictions into and use as a
@@ -56,6 +62,10 @@ def prepare_seed(loader, command_generator, device, output_path):
             cmd = command_of_bytes(seed[i : i + BYTES_PER_ENTRY])
             print_feature(cmd, file=f)
 
+    # We configure out dataloader to return the entire sample so we
+    # can check for overfitting. Prune that sample down here.
+    seed = seed[0 : BYTES_PER_ENTRY * MAX_WINDOW_SIZE]
+
     return MovingWindow(seed, device)
 
 
@@ -70,6 +80,12 @@ def generate_a_song(loader, load_fn, path, device, output_path):
 
     # Prepare a seed input from the data loader
     window = prepare_seed(loader, command_generator, device, output_path)
+
+    # Sanity check that we have a valid seed
+    print("Sanity checking seed")
+    for sample in window.window().reshape((-1, BYTES_PER_ENTRY)):
+        command_of_bytes(sample)
+    print("Sanity check done")
 
     with open(output_path + "/output.txt", "w") as f:
 

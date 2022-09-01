@@ -53,6 +53,7 @@ parser.add_argument("--training-data", required=True)
 parser.add_argument("--test-data", required=True)
 parser.add_argument("--source-dir", required=False)
 parser.add_argument("--output-path", required=False)
+parser.add_argument("--override-model", required=False)
 
 args = parser.parse_args()
 
@@ -68,7 +69,7 @@ def load_a_dataset(path):
     return torch.utils.data.DataLoader(
         SampleDataset(path, window_size=MAX_WINDOW_SIZE, start_at_sample=False),
         num_workers=1,
-        batch_size=4,
+        batch_size=5,
     )
 
 
@@ -92,14 +93,16 @@ def generate_from(model_path, output_path):
     # training, which is why this is a flag.
     out_of_sample_loader = torch.utils.data.DataLoader(
         SampleDataset(
-            test_data, window_size=MAX_WINDOW_SIZE, start_at_sample=True, max_files=1
+            test_data,
+            window_size=MAX_WINDOW_SIZE,
+            start_at_sample=True,
+            max_files=1,
+            entire_sample=True,
         )
     )
 
     # Generate a song using the out of sample loader
-    generate_a_song(
-        out_of_sample_loader, model, model_dir + model_path, device, output_path
-    )
+    generate_a_song(out_of_sample_loader, model, model_path, device, output_path)
 
 
 if mode == "fresh":
@@ -108,7 +111,11 @@ elif mode == "train":
     train_from("last.checkpoint")
 elif mode == "generate":
     assert args.output_path is not None
-    generate_from("last.checkpoint", args.output_path)
+    path = model_dir + "last.checkpoint"
+    if args.override_model is not None:
+        path = args.override_model
+    print("Loading model at:", path)
+    generate_from(path, args.output_path)
 elif mode == "split_data":
     split_training_dir_into_training_and_test_dir(
         args.source_dir, training_data, test_data
