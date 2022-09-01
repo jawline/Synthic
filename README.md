@@ -87,6 +87,17 @@ new outputs.
 
 ### Usage
 
+In this section we detail the process of collecting usable training data,
+training a new model, and then using that model to generate new music using the
+trained model.
+
+**TLDR;** `./scripts/play_and_record_all <roms dir> && ./scripts/prune_all &&
+python predictor/src/Predictor.py --mode split_data --source-dir ./pruned/
+--training-data ~/scratch/training-data/ --test-data ~/scratch/test_data/
+--model-dir ./local.model/ && python predictor/src/Predictor.py --mode fresh
+--training-data ~/scratch/training-data --test-data ~/scratch/test_data
+--model-dir ./local.model/ --output-path /tmp/ && ./scripts/generate_in_a_loop` 
+
 #### Training data collection
 
 We collected a large corpus of Gameboy ROM files from the internet archive. We
@@ -112,7 +123,10 @@ Now that we have prepared some data, model training is straightforward. Simply
 run `python predictor/src/Predictor.py --mode fresh --training-data
 ~/scratch/training-data --test-data ~/scratch/test_data --model-dir
 ./local.model/ --output-path /tmp/` and wait for the training to terminate,
-which will happen automatically when testing loss stops going down.
+which will happen automatically when testing loss stops going down. If you need
+to shut down the program for whatever reason the program can be executed with
+`--mode train` instead of `--mode fresh` to continue model training from the
+last epoch.
 
 **TLDR;** `python predictor/src/Predictor.py --mode fresh --training-data
 ~/scratch/training-data --test-data ~/scratch/test_data --model-dir
