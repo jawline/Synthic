@@ -1,4 +1,5 @@
 import os
+import random
 
 
 def copy_file(src_file, dst_dir):

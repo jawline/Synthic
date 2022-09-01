@@ -63,14 +63,14 @@ any file encoded in our sample format and writing a .wav file as output.
 Gameboy audio recordings are represented as 3-tuples of instruction, cycles
 since the last Instruction, and channel. The possible types of Instruction are:
 
-- LSB with params frequency: Set the least significant byte of the output
+- **LSB** with params frequency: Set the least significant byte of the output
   channels frequency.
-- MSB with parameters trigger, length enable, frequency: Set the most
+- **MSB** with parameters trigger, length enable, frequency: Set the most
   significant bit of a channels frequency along with trigger and length enable
 flags.
-- VOL with params volume, add, period: Set a channels volume and period
+- **VOL** with params volume, add, period: Set a channels volume and period
   registers along with an add bit.
-- DUTY with params duty, length_load: Set the duty cycle and length load
+- **DUTY** with params duty, length_load: Set the duty cycle and length load
   registers.
 
 These are saved either as text or binary files. The text files are line
@@ -95,12 +95,42 @@ repeat this a user can run `./scripts/play_and_record_all <roms dir>`. Once
 execution finished we run the Pruner on the collected to collect a series of
 short musical samples out of the recording from intervals where the emulator
 was not pressing buttons. To repeat this a user can run `./scripts/prune_all`.
-After this, our data is ready for model training.
+After this, our data is ready for model training. After this we can split the
+data into a training and testing set by running: `python3
+predictor/src/Predictor.py --mode split_data --source-dir ./pruned/
+--training-data ~/scratch/training-data/ --test-data ~/scratch/test_data/
+--model-dir ./local.model/`
 
-TLDR; `./scripts/play_and_record_all <roms dir> && ./scripts/prune_all`
+TLDR; `./scripts/play_and_record_all <roms dir> && ./scripts/prune_all &&
+python3 predictor/src/Predictor.py --mode split_data --source-dir ./pruned/
+--training-data ~/scratch/training-data/ --test-data ~/scratch/test_data/
+--model-dir ./local.model/`
 
 #### Model Training
 
+Now that we have prepared some data, model training is straightforward. Simply
+run `python3 predictor/src/Predictor.py --mode fresh --training-data
+~/scratch/training-data --test-data ~/scratch/test_data --model-dir
+./local.model/ --output-path /tmp/` and wait for the training to terminate,
+which will happen automatically when testing loss stops going down.
+
+TLDR; `python3 predictor/src/Predictor.py --mode fresh --training-data
+~/scratch/training-data --test-data ~/scratch/test_data --model-dir
+./local.model/ --output-path /tmp/`
+
 #### Music Sample Generation
 
+To generate individual samples using the model we have trained we can run run
+`python3 predictor/src/Predictor.py --mode generate --training-data ./fast-test
+--test-data ./fast-test --model-dir ./local.model/ --output-path /tmp/`. This
+will place the output file at `/tmp/output.txt`. We can then play this file
+back by running `./scripts/playback /tmp/output.txt`. To make this more
+convenient the script `./scripts/generate_in_a_loop` can be run to generate
+lots of random songs by seeding the generator with a random sample from
+something in our testing data set.
+
+TLDR; `./scripts/generate_in_a_loop`
+
 #### Converting recordings to WAV files
+
+TLDR; `./scripts/convert_all_to_wav  ./samples /tmp/out`
