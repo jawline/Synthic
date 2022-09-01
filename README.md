@@ -52,7 +52,7 @@ seed and output them to a file for playback.
 
 #### Convertor
 
- Until now, our representation of all of our audio samples has been in a custom
+Until now, our representation of all of our audio samples has been in a custom
 format that captures the instructions sent to audio hardware and their times.
 To enjoy our synthesized music we now need to convert it into an audio wave and
 write it to a file. Our final utility, convert2wav does exactly this, taking
@@ -132,5 +132,12 @@ something in our testing data set.
 **TLDR;** `./scripts/generate_in_a_loop`
 
 #### Converting recordings to WAV files
+
+Once we have generated some audio samples we need to convert from them into
+audio files. The audio converter will automatically discard obviously bad
+samples and outputs in the wav format. To invoke the converter run
+`./scripts/convert_to_wav <sample_file> <output_dir>`. We also include the
+script `./scripts/convert_all_to_wav` to convert all samples in a directory to
+wav files.
 
 **TLDR;** `./scripts/convert_all_to_wav  ./samples /tmp/out`
