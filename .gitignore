@@ -1,6 +1,7 @@
 target/
 *.pyc
 .ipynb_checkpoints/*
+node_modules/
 
 output.txt
 seed.txt

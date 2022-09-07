@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 BASE="$1"
-NEW="$2/$(shasum "$1" | cut -d ' ' -f 1).wav"
-echo "Converting $1 to ${NEW}"
-./emulator/target/release/recording_to_file --file "$1" --output "${NEW}"
+#echo "Basename: $(dirname "$1")"
+NEW_NAME=$(dirname "$1" | shasum | awk '{ print $1 }')
+echo "New name: ${NEW_NAME}"
+echo "Converting $1 to $2/${NEW_NAME}_$3"
+./emulator/target/release/recording_to_file --file "$1" --output "$2/${NEW_NAME}_$3"

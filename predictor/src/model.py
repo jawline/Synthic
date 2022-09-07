@@ -343,7 +343,7 @@ saved on disk if [path] is a string.
 
 def load_model(model, path, device):
 
-    default_lr = 0.0001
+    default_lr = 0.00003
 
     optimizer = optim.AdamW(
         model.parameters(),

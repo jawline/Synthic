@@ -1,5 +1,5 @@
 import torch
-from torch.distributions.categorical import Categorical
+from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
 
 import numpy as np
 
@@ -96,7 +96,12 @@ def generate_a_song(loader, load_fn, path, device, output_path):
             preds = preds[0][-1:]
 
             for pred in preds:
-                pred = Categorical(logits=pred).sample()
+                pred = pred.type(torch.float32)
+                pred = (
+                    RelaxedOneHotCategorical(temperature=1.05, logits=pred)
+                    .sample()
+                    .argmax()
+                )
                 window.append(pred)
 
             should_output_sample = (i + 1) % BYTES_PER_ENTRY == 0
