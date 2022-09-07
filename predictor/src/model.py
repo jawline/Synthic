@@ -233,7 +233,7 @@ class GameboyNet(nn.Module):
         dim=256,
         num_blocks=1,
         layer_spec=[
-            item for sublist in [["attention" for i in range(7)]] for item in sublist
+            item for sublist in [["attention" for i in range(4)]] for item in sublist
         ],
         hfactor=4,
         layer_dropout=0,

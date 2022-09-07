@@ -6,7 +6,6 @@ function loadNextWav() {
     const nel = `<audio controls="controls"><source src="${ni}" type="audio/x-wav" /></audio>`;
     console.log('Next element: ', next_index, ni, nel);
     document.getElementById('player').innerHTML = nel;
-    return true;
 }
 
 fetch("./wavs.json").then(response => {
