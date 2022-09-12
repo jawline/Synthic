@@ -47,7 +47,7 @@ scaler = GradScaler()
 
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
 
-    early_exit = EarlyExit(2)
+    early_exit = EarlyExit(3)
 
     cpu = torch.device("cpu")
 
@@ -72,8 +72,8 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         for seq in iter(ldr):
             seq = seq.to(device)
-            inputs = seq[:, :-1]
-            labels = seq[:, 1:]
+            inputs = seq[:, :-BYTES_PER_ENTRY]
+            labels = seq[:, BYTES_PER_ENTRY:]
 
             # print(inputs.shape)
             # print(labels.shape)
@@ -127,10 +127,8 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         print("Saving checkpoint")
 
-        # Timestamp every 10th epoch to test fits later
-        if epoch % 10 == 0:
-            save(model_dir + "/" + str(int(datetime.now().timestamp())))
-
+        # Save a timestamped version of the epoch and the current version for later sampling.
+        save(model_dir + "/" + str(int(datetime.now().timestamp())))
         save(model_dir + "/last.checkpoint")
 
         print("Saved checkpoint")

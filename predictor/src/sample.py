@@ -25,7 +25,7 @@ PARAM3_OFFSET = 5
 SIZE_OF_INPUT_FIELDS = 6
 
 # The maximum number of samples we will send to the model in a single iteration
-MAX_WINDOW_SIZE = 256
+MAX_WINDOW_SIZE = 128
 
 # The Gameboy cycles this many times per second. This is the
 # measurement of time we use in our TIME_OFFSET values
@@ -301,7 +301,7 @@ class SampleDataset(torch.utils.data.IterableDataset):
         epoch_data = []
 
         for (name, data) in self.file_datas:
-            for _i in range(128):
+            for _i in range(5000):
                 next_step_data = self.random_start_offset(data)
                 epoch_data.append(next_step_data)
 
