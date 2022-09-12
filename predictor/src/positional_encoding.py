@@ -26,5 +26,10 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x):
-        print(x.shape, x.size(0), self.pe[: x.size(0)].shape)
-        return x + self.pe[: x.size(0)]
+        # Permute the input from (batch_sz, seq_len, dim) to (seq_len, batch_sz, dim)
+        x = x.permute(1, 0, 2)
+        x = x + self.pe[: x.size(0)]
+
+        # Return the input to it's original shape
+        x = x.permute(1, 0, 2)
+        return x
