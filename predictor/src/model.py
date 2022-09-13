@@ -85,7 +85,6 @@ class GameboyNet(nn.Module):
         self.finalize = nn.Sequential(
             *[
                 FeedForward(dim, dim, dropout=layer_dropout),
-                nn.ReLU(),
             ]
         )
 
@@ -102,8 +101,8 @@ class GameboyNet(nn.Module):
     """
 
     def predict(self, x):
-        x = self.forward(x)
-        return x
+        # Permute to (batch, seq_len, 256)
+        return self.forward(x).permute(0, 2, 1)
 
 
 """

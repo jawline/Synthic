@@ -92,7 +92,8 @@ def generate_a_song(loader, load_fn, path, device, output_path):
         for i in range(BYTES_PER_ENTRY * 10000):
 
             # with torch.cuda.amp.autocast():
-            preds = command_generator.predict(window.window().unsqueeze(0)).detach()
+            model_input = window.window().unsqueeze(0).detach()
+            preds = command_generator.predict(model_input).detach()
             preds = preds[0][-1:]
 
             for pred in preds:
