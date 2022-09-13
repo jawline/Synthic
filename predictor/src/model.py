@@ -26,7 +26,7 @@ class ModelLayer(nn.Module):
         residual = ResidualBlock(nn.Sequential(*[causal, forward]))
         layers = [residual]
 
-        layers.append(Permute(nn.LayerNorm(dim)))
+        layers.append(nn.LayerNorm(dim))
 
         if layer_dropout is not None:
             layers.append(nn.Dropout(p=layer_dropout))
@@ -44,8 +44,8 @@ batch normalizing the output.
 
 
 def AttentionModelLayer(dim, layer_dropout):
-    causal = Permute(AttentionBlock(dim))
-    forward = Permuted(FeedForward(dim, 1024, layer_dropout))
+    causal = AttentionBlock(dim)
+    forward = FeedForward(dim, 1024, layer_dropout)
     return ModelLayer(dim, causal, forward, layer_dropout)
 
 
@@ -84,7 +84,7 @@ class GameboyNet(nn.Module):
         # Combine all the channels and then activate as a final step
         self.finalize = nn.Sequential(
             *[
-                PermutedFeedForward(dim, dim, dropout=layer_dropout),
+                FeedForward(dim, dim, dropout=layer_dropout),
                 nn.ReLU(),
             ]
         )
@@ -92,11 +92,9 @@ class GameboyNet(nn.Module):
     def forward(self, x):
         x = self.embed(x) * math.sqrt(self.dim)
         x = self.positional_encoding(x)
-        # Permute the input so that the embeddings are at dim 1 and the inputs for each embedding are at dim 2
-        x = x.permute(0, 2, 1)
         x = self.layers(x)
         x = self.finalize(x)
-        return x
+        return x.permute(0, 2, 1)
 
     """
     Calls forward and then permutes the result back to (batch_size, input_size, embedding_dim)
@@ -105,7 +103,7 @@ class GameboyNet(nn.Module):
 
     def predict(self, x):
         x = self.forward(x)
-        return x.permute(0, 2, 1)
+        return x
 
 
 """

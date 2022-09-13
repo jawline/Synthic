@@ -4,7 +4,7 @@ from torch import nn
 
 class FeedForward(nn.Module):
     def __init__(self, dim, expansion_dim, dropout):
-        super(PermutedFeedForward, self).__init__()
+        super(FeedForward, self).__init__()
         self.layer = nn.Sequential(
             *[
                 nn.Linear(dim, expansion_dim),
