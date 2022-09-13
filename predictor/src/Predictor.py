@@ -69,7 +69,7 @@ def load_a_dataset(path):
     return torch.utils.data.DataLoader(
         SampleDataset(path, window_size=MAX_WINDOW_SIZE, start_at_sample=False),
         num_workers=1,
-        batch_size=5,
+        batch_size=8,
     )
 
 

@@ -13,20 +13,20 @@ from torch import nn, optim
 # to automate that process.
 from adaptive_warmup import Scheduler as AdaptiveWarmup
 from positional_encoding import PositionalEncoding
-from attention_block import PermutedAttentionBlock
-from feed_forward import PermutedFeedForward
+from attention_block import AttentionBlock
+from feed_forward import FeedForward
 from residual_block import ResidualBlock
+from permute import Permute
 
 
 class ModelLayer(nn.Module):
-    def __init__(self, dim, causal, forward, batch_norm, layer_dropout):
+    def __init__(self, dim, causal, forward, layer_dropout):
         super(ModelLayer, self).__init__()
 
         residual = ResidualBlock(nn.Sequential(*[causal, forward]))
         layers = [residual]
 
-        if batch_norm:
-            layers.append(nn.BatchNorm1d(dim))
+        layers.append(Permute(nn.LayerNorm(dim)))
 
         if layer_dropout is not None:
             layers.append(nn.Dropout(p=layer_dropout))
@@ -43,10 +43,10 @@ batch normalizing the output.
 """
 
 
-def AttentionModelLayer(dim, batch_norm, layer_dropout):
-    causal = PermutedAttentionBlock(dim)
-    forward = PermutedFeedForward(dim, 1024, layer_dropout)
-    return ModelLayer(dim, causal, forward, batch_norm, layer_dropout)
+def AttentionModelLayer(dim, layer_dropout):
+    causal = Permute(AttentionBlock(dim))
+    forward = Permuted(FeedForward(dim, 1024, layer_dropout))
+    return ModelLayer(dim, causal, forward, layer_dropout)
 
 
 """
@@ -59,16 +59,14 @@ class GameboyNet(nn.Module):
     def __init__(
         self,
         dim=256,
-        num_attention_layers=10,
+        num_attention_layers=5,
         layer_dropout=0,
-        batch_norm=True,
     ):
         super(GameboyNet, self).__init__()
 
         def make_layer(i):
             return AttentionModelLayer(
                 dim=dim,
-                batch_norm=batch_norm,
                 layer_dropout=layer_dropout,
             )
 
@@ -133,16 +131,16 @@ saved on disk if [path] is a string.
 
 def load_model(model, path, device):
 
-    default_lr = 0.00003
+    default_lr = 0.00004
 
-    optimizer = optim.AdamW(model.parameters(), lr=default_lr, weight_decay=0.001)
+    optimizer = optim.AdamW(model.parameters(), lr=default_lr, weight_decay=0.002)
 
     # optimizer = optim.SGD(
     #    model.parameters(), lr=default_lr, momentum=0.9, nesterov=True
     # )
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", factor=0.9, min_lr=0.00000001, patience=1
+        optimizer, "min", factor=0.9, min_lr=0.00000001, patience=2
     )
 
     # TODO: Use this

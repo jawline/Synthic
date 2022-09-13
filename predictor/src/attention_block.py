@@ -32,15 +32,3 @@ class AttentionBlock(nn.Module):
         v = self.v(x)
         x = self.attn(q, k, v)
         return x
-
-
-class PermutedAttentionBlock(nn.Module):
-    def __init__(self, dim):
-        super(PermutedAttentionBlock, self).__init__()
-        self.attn = AttentionBlock(dim)
-
-    def forward(self, x):
-        x = x.permute(0, 2, 1)
-        x = self.attn(x)
-        x = x.permute(0, 2, 1)
-        return x

@@ -47,7 +47,7 @@ scaler = GradScaler()
 
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
 
-    early_exit = EarlyExit(3)
+    early_exit = EarlyExit(5)
 
     cpu = torch.device("cpu")
 
@@ -72,8 +72,8 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         for seq in iter(ldr):
             seq = seq.to(device)
-            inputs = seq[:, :-BYTES_PER_ENTRY]
-            labels = seq[:, BYTES_PER_ENTRY:]
+            inputs = seq[:, :-1]
+            labels = seq[:, 1:]
 
             # print(inputs.shape)
             # print(labels.shape)

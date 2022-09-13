@@ -2,7 +2,7 @@ import math
 from torch import nn
 
 
-class PermutedFeedForward(nn.Module):
+class FeedForward(nn.Module):
     def __init__(self, dim, expansion_dim, dropout):
         super(PermutedFeedForward, self).__init__()
         self.layer = nn.Sequential(
@@ -15,7 +15,5 @@ class PermutedFeedForward(nn.Module):
         )
 
     def forward(self, x):
-        x = x.permute(0, 2, 1)
         x = self.layer(x)
-        x = x.permute(0, 2, 1)
         return x

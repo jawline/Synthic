@@ -93,18 +93,18 @@ def generate_a_song(loader, load_fn, path, device, output_path):
 
             # with torch.cuda.amp.autocast():
             preds = command_generator.predict(window.window().unsqueeze(0)).detach()
-            preds = preds[0][-BYTES_PER_ENTRY:]
+            preds = preds[0][-1:]
 
             for pred in preds:
                 pred = pred.type(torch.float32)
                 pred = (
-                    RelaxedOneHotCategorical(temperature=1.2, logits=pred)
+                    RelaxedOneHotCategorical(temperature=1, logits=pred)
                     .sample()
                     .argmax()
                 )
                 window.append(pred)
 
-            should_output_sample = True  # (i + 1) % BYTES_PER_ENTRY == 0
+            should_output_sample = (i + 1) % BYTES_PER_ENTRY == 0
 
             if should_output_sample:
                 try:
