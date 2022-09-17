@@ -1,3 +1,6 @@
+import torch
+
+
 class EarlyExit:
     def __init__(self, tolerence):
         self.tolerence = tolerence
