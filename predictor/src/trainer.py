@@ -1,53 +1,22 @@
 import math
 from datetime import datetime
 
+from parameters import TRAIN_MARKED_TO_NEXT_SAMPLE
+
 import torch
 from torch.cuda.amp import autocast, GradScaler
 from torch import nn
 
 from sample import MAX_WINDOW_SIZE, BYTES_PER_ENTRY
-
-
-class EarlyExit:
-    def __init__(self, tolerence):
-        self.tolerence = tolerence
-        self.bad_rounds = 0
-        self.last_losses = torch.as_tensor([])
-
-    def mean_loss(self):
-        if self.last_losses.size(dim=0) == 0:
-            return None
-
-        return self.last_losses.mean()
-
-    def append_loss(self, loss):
-        self.last_losses = torch.cat((self.last_losses, torch.as_tensor([loss])))
-        self.last_losses = self.last_losses[-8:]
-
-    def update(self, loss):
-        mean_loss = self.mean_loss()
-        print("Mean validation loss: ", mean_loss)
-
-        if mean_loss is None:
-            self.append_loss(loss)
-            return
-
-        if loss > mean_loss:
-            self.bad_rounds += 1
-        else:
-            self.bad_rounds = 0
-            self.append_loss(loss)
-
-        if self.bad_rounds == self.tolerence:
-            raise Exception("early exit because validation loss stopped going down")
-
+from parameters import EARLY_LOSS_EXIT
+from early_exit import EarlyExit
 
 scaler = GradScaler()
 
 
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
 
-    early_exit = EarlyExit(6)
+    early_exit = EarlyExit(EARLY_LOSS_EXIT)
 
     cpu = torch.device("cpu")
 
@@ -72,11 +41,15 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         for seq in iter(ldr):
             seq = seq.to(device)
-            inputs = seq[:, :-1]
-            labels = seq[:, 1:]
 
-            # print(inputs.shape)
-            # print(labels.shape)
+            # Predict either t+7 or t+1 depending on training mode
+            stride = 1
+
+            if TRAIN_MARKED_TO_NEXT_SAMPLE:
+                stride = BYTES_PER_ENTRY
+
+            inputs = seq[:, :-stride]
+            labels = seq[:, stride:]
 
             with torch.cuda.amp.autocast():
                 logits = command_generator(inputs)

@@ -8,7 +8,7 @@ use hound;
 use gb_int::encoded_file::*;
 
 const MIN_SECONDS: f64 = 5.;
-const MAX_SECONDS: f64 = 120.;
+const MAX_SECONDS: f64 = 160.;
 
 /// This doc string acts as a help message when the user runs '--help'
 /// as do all doc strings on fields

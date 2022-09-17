@@ -11,6 +11,9 @@ from sample import (
     print_feature,
 )
 
+from parameters import TRAIN_MARKED_TO_NEXT_SAMPLE
+
+
 """
 This block allocates some linear memory we feed new predictions into and use as a
 rolling window for the NN so we don't need to move memory as often.
@@ -89,12 +92,22 @@ def generate_a_song(loader, load_fn, path, device, output_path):
 
     with open(output_path + "/output.txt", "w") as f:
 
+        predicted = 0
+
         for i in range(BYTES_PER_ENTRY * 10000):
+
+            # Depending on how far we are predicting in the future from t
+            # we adjust the amount of the output that we consider to be
+            # a prediction
+            stride = 1
+
+            if TRAIN_MARKED_TO_NEXT_SAMPLE:
+                stride = BYTES_PER_ENTRY
 
             # with torch.cuda.amp.autocast():
             model_input = window.window().unsqueeze(0).detach()
             preds = command_generator.predict(model_input).detach()
-            preds = preds[0][-1:]
+            preds = preds[0][-stride:]
 
             for pred in preds:
                 pred = pred.type(torch.float32)
@@ -104,21 +117,22 @@ def generate_a_song(loader, load_fn, path, device, output_path):
                     .argmax()
                 )
                 window.append(pred)
+                predicted += 1
 
-            should_output_sample = (i + 1) % BYTES_PER_ENTRY == 0
+                should_output_sample = predicted % BYTES_PER_ENTRY == 0
 
-            if should_output_sample:
-                try:
-                    last_sample = (
-                        window.window()[-BYTES_PER_ENTRY:]
-                        .detach()
-                        .cpu()
-                        .numpy()
-                        .astype(np.uint8)
-                    )
-                    print(last_sample)
-                    last_sample = command_of_bytes(last_sample)
-                    print_feature(last_sample, file=f)
-                except BaseException as err:
-                    print("pred was not valid because:", err)
-                    raise Exception("predictions stopped looking valid")
+                if should_output_sample:
+                    try:
+                        last_sample = (
+                            window.window()[-BYTES_PER_ENTRY:]
+                            .detach()
+                            .cpu()
+                            .numpy()
+                            .astype(np.uint8)
+                        )
+                        print(last_sample)
+                        last_sample = command_of_bytes(last_sample)
+                        print_feature(last_sample, file=f)
+                    except BaseException as err:
+                        print("pred was not valid because:", err)
+                        raise Exception("predictions stopped looking valid")

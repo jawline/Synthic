@@ -18,6 +18,15 @@ from feed_forward import FeedForward
 from residual_block import ResidualBlock
 from permute import Permute
 
+from parameters import (
+    START_LR,
+    MAX_LR,
+    L2_REG_WEIGHT_DECAY,
+    NUM_ATTENTION_LAYERS,
+    FEED_FORWARD_HDIM,
+    WARMUP_PERIOD,
+)
+
 
 class ModelLayer(nn.Module):
     def __init__(self, dim, causal, forward, layer_dropout):
@@ -45,7 +54,7 @@ batch normalizing the output.
 
 def AttentionModelLayer(dim, layer_dropout):
     causal = AttentionBlock(dim)
-    forward = FeedForward(dim, 1024, layer_dropout)
+    forward = FeedForward(dim, FEED_FORWARD_HDIM, layer_dropout)
     return ModelLayer(dim, causal, forward, layer_dropout)
 
 
@@ -59,7 +68,7 @@ class GameboyNet(nn.Module):
     def __init__(
         self,
         dim=256,
-        num_attention_layers=5,
+        num_attention_layers=NUM_ATTENTION_LAYERS,
         layer_dropout=0,
     ):
         super(GameboyNet, self).__init__()
@@ -128,9 +137,9 @@ saved on disk if [path] is a string.
 
 def load_model(model, path, device):
 
-    default_lr = 0.00004
-
-    optimizer = optim.AdamW(model.parameters(), lr=default_lr, weight_decay=0.002)
+    optimizer = optim.AdamW(
+        model.parameters(), lr=MAX_LR, weight_decay=L2_REG_WEIGHT_DECAY
+    )
 
     # optimizer = optim.SGD(
     #    model.parameters(), lr=default_lr, momentum=0.9, nesterov=True
@@ -158,9 +167,9 @@ def load_model(model, path, device):
         # Fresh model so start with some adaptive warmup
         scheduler = AdaptiveWarmup(
             optimizer,
-            start_lr=0.00000001,
-            end_lr=default_lr,
-            num_steps=8,
+            start_lr=START_LR,
+            end_lr=MAX_LR,
+            num_steps=WARMUP_PERIOD,
             criterion=lr_criterion,
             underlying_scheduler=scheduler,
             pass_through_loss_to_underlying=True,
