@@ -25,6 +25,10 @@ from parameters import (
     NUM_ATTENTION_LAYERS,
     FEED_FORWARD_HDIM,
     WARMUP_PERIOD,
+    STEP_SIZE,
+    STEP_GAMMA,
+    REDUCE_LR_PATIENCE,
+    REDUCE_LR_FACTOR,
 )
 
 
@@ -146,12 +150,15 @@ def load_model(model, path, device):
     # )
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", factor=0.9, min_lr=0.00000001, patience=2
+        optimizer,
+        "min",
+        factor=REDUCE_LR_FACTOR,
+        min_lr=0.00000001,
+        patience=REDUCE_LR_PATIENCE,
     )
 
-    # TODO: Use this
     scheduler_step = optim.lr_scheduler.StepLR(
-        optimizer, step_size=999999991, gamma=0.9
+        optimizer, step_size=STEP_SIZE, gamma=STEP_GAMMA
     )
 
     model = model.to(device)

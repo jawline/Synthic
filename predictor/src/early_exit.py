@@ -2,8 +2,9 @@ import torch
 
 
 class EarlyExit:
-    def __init__(self, tolerence):
+    def __init__(self, lookback_window, tolerence):
         self.tolerence = tolerence
+        self.lookback_window
         self.bad_rounds = 0
         self.last_losses = torch.as_tensor([])
 
@@ -15,7 +16,7 @@ class EarlyExit:
 
     def append_loss(self, loss):
         self.last_losses = torch.cat((self.last_losses, torch.as_tensor([loss])))
-        self.last_losses = self.last_losses[-8:]
+        self.last_losses = self.last_losses[-self.lookback_window :]
 
     def update(self, loss):
         mean_loss = self.mean_loss()

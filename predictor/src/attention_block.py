@@ -4,8 +4,11 @@ import torch
 from torch import nn
 from local_attention import LocalAttention
 
-from parameters import ATTENTION_WINDOW_SIZE
-from parameters import ATTENTION_DROPOUT
+from parameters import (
+    ATTENTION_WINDOW_SIZE,
+    ATTENTION_DROPOUT,
+    ATTENTION_WINDOW_LOOKBACK,
+)
 
 """
 TODO: Add documentation on why we should use attention blocks.
@@ -22,7 +25,7 @@ class AttentionBlock(nn.Module):
             dim=dim,
             window_size=ATTENTION_WINDOW_SIZE,
             causal=True,
-            look_backward=3,
+            look_backward=ATTENTION_WINDOW_LOOKBACK,
             look_forward=0,
             dropout=ATTENTION_DROPOUT,
             autopad=True,

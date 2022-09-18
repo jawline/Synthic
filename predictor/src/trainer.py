@@ -8,7 +8,7 @@ from torch.cuda.amp import autocast, GradScaler
 from torch import nn
 
 from sample import BYTES_PER_ENTRY
-from parameters import EARLY_LOSS_EXIT
+from parameters import EARLY_LOSS_EXIT, EARLY_LOSS_EXIT_LOOKBACK
 from early_exit import EarlyExit
 
 scaler = GradScaler()
@@ -16,7 +16,7 @@ scaler = GradScaler()
 
 def train(data_loader, validation_loader, load_fn, model_dir, load_path, device):
 
-    early_exit = EarlyExit(EARLY_LOSS_EXIT)
+    early_exit = EarlyExit(EARLY_LOSS_EXIT_LOOKBACK, EARLY_LOSS_EXIT)
 
     cpu = torch.device("cpu")
 
