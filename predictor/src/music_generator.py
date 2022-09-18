@@ -5,13 +5,12 @@ import numpy as np
 
 from sample import (
     BYTES_PER_ENTRY,
-    MAX_WINDOW_SIZE,
     command_of_bytes,
     command_to_bytes,
     print_feature,
 )
 
-from parameters import TRAIN_MARKED_TO_NEXT_SAMPLE
+from parameters import TRAIN_MARKED_TO_NEXT_SAMPLE, WINDOW_SIZE
 
 
 """
@@ -67,7 +66,7 @@ def prepare_seed(loader, command_generator, device, output_path):
 
     # We configure out dataloader to return the entire sample so we
     # can check for overfitting. Prune that sample down here.
-    seed = seed[0 : BYTES_PER_ENTRY * MAX_WINDOW_SIZE]
+    seed = seed[0 : BYTES_PER_ENTRY * WINDOW_SIZE]
 
     return MovingWindow(seed, device)
 

@@ -1,7 +1,7 @@
 import math
 
 # Sample constants we need to size the model
-from sample import MAX_WINDOW_SIZE, BYTES_PER_ENTRY
+from sample import BYTES_PER_ENTRY
 
 # Torch stuff
 import torch

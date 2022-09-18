@@ -1,8 +1,9 @@
 import math
 
-from sample import MAX_WINDOW_SIZE, BYTES_PER_ENTRY
+from sample import BYTES_PER_ENTRY
 import torch
 from torch import nn
+from parameters import WINDOW_SIZE
 
 
 """
@@ -13,9 +14,8 @@ of inputs.
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=MAX_WINDOW_SIZE * BYTES_PER_ENTRY):
+    def __init__(self, d_model, max_len=WINDOW_SIZE * BYTES_PER_ENTRY):
         super().__init__()
-        assert MAX_WINDOW_SIZE <= max_len
         position = torch.arange(max_len).unsqueeze(1)
         div_term = torch.exp(
             torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)

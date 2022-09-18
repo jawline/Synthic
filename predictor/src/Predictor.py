@@ -14,15 +14,14 @@ import argparse
 # Data preparation
 import numpy as np
 
-from sample import (
-    SampleDataset,
-    MAX_WINDOW_SIZE,
-)
+from sample import SampleDataset
 
 from training_data import split_training_dir_into_training_and_test_dir
 from model import load_gameboy_net
 from trainer import train
 from music_generator import generate_a_song
+
+from parameters import WINDOW_SIZE
 
 # Pytorch setup
 import torch
@@ -67,7 +66,7 @@ model_dir = args.model_dir
 
 def load_a_dataset(path):
     return torch.utils.data.DataLoader(
-        SampleDataset(path, window_size=MAX_WINDOW_SIZE, start_at_sample=False),
+        SampleDataset(path, window_size=WINDOW_SIZE, start_at_sample=False),
         num_workers=1,
         batch_size=8,
     )
@@ -94,7 +93,7 @@ def generate_from(model_path, output_path):
     out_of_sample_loader = torch.utils.data.DataLoader(
         SampleDataset(
             test_data,
-            window_size=MAX_WINDOW_SIZE,
+            window_size=WINDOW_SIZE,
             start_at_sample=True,
             max_files=1,
             entire_sample=True,

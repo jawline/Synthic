@@ -7,7 +7,7 @@ import torch
 from torch.cuda.amp import autocast, GradScaler
 from torch import nn
 
-from sample import MAX_WINDOW_SIZE, BYTES_PER_ENTRY
+from sample import BYTES_PER_ENTRY
 from parameters import EARLY_LOSS_EXIT
 from early_exit import EarlyExit
 
