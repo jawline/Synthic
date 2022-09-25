@@ -99,7 +99,7 @@ class GameboyNet(nn.Module):
         # Combine all the channels and then activate as a final step
         self.finalize = nn.Sequential(
             *[
-                nn.Linear(dim, inp_dim),
+                FeedForward(dim, inp_dim, dropout=layer_dropout),
             ]
         )
 

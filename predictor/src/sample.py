@@ -4,7 +4,6 @@ import os
 import time
 import random
 import torch
-import shutil
 from termcolor import colored
 
 # These commands enumerate the different kind of instruction we can send to each channel.
@@ -298,7 +297,7 @@ class SampleDataset(torch.utils.data.IterableDataset):
         epoch_data = []
 
         for (name, data) in self.file_datas:
-            for _i in range(90):
+            for _i in range(10):
                 next_step_data = self.random_start_offset(data)
                 epoch_data.append(next_step_data)
 
@@ -309,7 +308,7 @@ class SampleDataset(torch.utils.data.IterableDataset):
         count = 0
         for data in epoch_data:
             count += 1
-            if count % int(len(epoch_data) / 10) == 0:
+            if count % int(max(len(epoch_data) / 10, 1)) == 0:
                 print(
                     colored(
                         "Epoch: " + str((count / len(epoch_data)) * 100) + "%",

@@ -25,4 +25,4 @@ FEED_FORWARD_HDIM = 4
 WINDOW_SIZE = 128
 ACTIVATION = nn.GELU  # TODO: Play with different activations?
 
-BATCH_SIZE = 12
+BATCH_SIZE = 4
