@@ -183,7 +183,7 @@ pub struct GameboyState {
   pub print_sound_registers: bool,
 
   /// Disable writes from 0x4000-0x5FFF for gbs playback
-  pub disable_rom_upper_writes: bool
+  pub disable_rom_upper_writes: bool,
 }
 
 impl GameboyState {
@@ -225,7 +225,7 @@ impl GameboyState {
       gamepad_high: false,
 
       print_sound_registers,
-      disable_rom_upper_writes: false
+      disable_rom_upper_writes: false,
     }
   }
 
@@ -313,12 +313,12 @@ impl GameboyState {
 
   fn set_rom_bank_upper(&mut self, bank: u8) {
     if self.disable_rom_upper_writes {
-        trace!("not setting ROM bank because we are in GBS mode");
+      trace!("not setting ROM bank because we are in GBS mode");
     } else {
-        let bank = (bank & 0x3) << 5;
-        let bank = bank as usize + self.rom_bank;
-        self.rom_bank = bank;
-        info!("set rom bank upper 2 bits {} {}", bank, self.rom_bank);
+      let bank = (bank & 0x3) << 5;
+      let bank = bank as usize + self.rom_bank;
+      self.rom_bank = bank;
+      info!("set rom bank upper 2 bits {} {}", bank, self.rom_bank);
     }
   }
 }

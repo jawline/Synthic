@@ -8,15 +8,14 @@ use std::sync::mpsc;
 
 use gb_int::{
   clock::Clock,
-  cpu::{TIMER, VBLANK, INTERRUPTS_ENABLED_ADDRESS, Cpu},
+  cpu::{Cpu, INTERRUPTS_ENABLED_ADDRESS, TIMER, VBLANK},
   instruction::InstructionSet,
   machine::{Machine, MachineState},
   memory::{GameboyState, RomChunk},
-  ppu::{Ppu},
+  ppu::Ppu,
   sound,
   sound::Sound,
 };
-
 
 #[repr(C, packed(1))]
 struct GbsHeader {
@@ -94,8 +93,8 @@ fn main() -> Result<(), Box<dyn Error>> {
   let song_count = header.song_count;
 
   if opts.track >= song_count {
-      println!("Song requested exceeds song count");
-      return Ok(())
+    println!("Song requested exceeds song count");
+    return Ok(());
   }
 
   println!(
@@ -119,9 +118,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   let start_of_custom_code = 0x100;
 
-
   // For each RST jump to load_address + RST
-  for addr in [0x0, 0x8, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] { 
+  for addr in [0x0, 0x8, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] {
     let address = load_address + addr;
     sound_rom.force_write_u8(addr, 0xC3);
     sound_rom.force_write_u8(addr + 1, address.to_le_bytes()[0]);
@@ -130,8 +128,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   // Write JMP 0 at 0
   sound_rom.force_write_u8(start_of_custom_code + 0, 0xC3);
-  sound_rom.force_write_u8(start_of_custom_code + 1, start_of_custom_code.to_le_bytes()[0]);
-  sound_rom.force_write_u8(start_of_custom_code + 2, start_of_custom_code.to_le_bytes()[1]);
+  sound_rom.force_write_u8(
+    start_of_custom_code + 1,
+    start_of_custom_code.to_le_bytes()[0],
+  );
+  sound_rom.force_write_u8(
+    start_of_custom_code + 2,
+    start_of_custom_code.to_le_bytes()[1],
+  );
 
   // Write SET A 1, CALL INIT, CALL PLAY, JP 0, at 0x3
   sound_rom.force_write_u8(start_of_custom_code + 0x3, 0x3E);
@@ -143,9 +147,14 @@ fn main() -> Result<(), Box<dyn Error>> {
   sound_rom.force_write_u8(start_of_custom_code + 0x9, play_address.to_le_bytes()[0]);
   sound_rom.force_write_u8(start_of_custom_code + 0xA, play_address.to_le_bytes()[1]);
   sound_rom.force_write_u8(start_of_custom_code + 0xB, 0xC3);
-  sound_rom.force_write_u8(start_of_custom_code + 0xC, start_of_custom_code.to_le_bytes()[0]);
-  sound_rom.force_write_u8(start_of_custom_code + 0xD, start_of_custom_code.to_le_bytes()[1]);
-
+  sound_rom.force_write_u8(
+    start_of_custom_code + 0xC,
+    start_of_custom_code.to_le_bytes()[0],
+  );
+  sound_rom.force_write_u8(
+    start_of_custom_code + 0xD,
+    start_of_custom_code.to_le_bytes()[1],
+  );
 
   // Write CALL play, EI, JMP 0 to the VBLANK address
   sound_rom.force_write_u8(0x40, 0xCD);
@@ -191,7 +200,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (_device, _stream, sample_rate, sound_tx) = sound::open_device()?;
     (sample_rate, sound_tx)
   };
-    
+
   println!("Opened sound device");
 
   // This will be unused but we need to provide a buffer. Make it small so we crash if
@@ -213,19 +222,37 @@ fn main() -> Result<(), Box<dyn Error>> {
     gameboy.state.cpu.registers.sp()
   );
 
-  gameboy.state.cpu.registers.set_pc(start_of_custom_code + 0x3);
+  gameboy
+    .state
+    .cpu
+    .registers
+    .set_pc(start_of_custom_code + 0x3);
   gameboy.state.cpu.registers.ime = true;
   gameboy.state.memory.disable_rom_upper_writes = true;
   gameboy.state.memory.print_sound_registers = true;
 
   // If timer_control or timer_modulo are nonzero then use the timer interrupt otherwise use the
   // VSync interrupt.
-  
-  gameboy.state.memory.write_u8(0xFF06, timer_modulo, &gameboy.state.cpu.registers);
-  gameboy.state.memory.write_u8(0xFF07, timer_control, &gameboy.state.cpu.registers);
-  gameboy.state.memory.write_u8(INTERRUPTS_ENABLED_ADDRESS, TIMER, &gameboy.state.cpu.registers);
-  gameboy.state.memory.write_u8(INTERRUPTS_ENABLED_ADDRESS, VBLANK, &gameboy.state.cpu.registers);
- 
+
+  gameboy
+    .state
+    .memory
+    .write_u8(0xFF06, timer_modulo, &gameboy.state.cpu.registers);
+  gameboy
+    .state
+    .memory
+    .write_u8(0xFF07, timer_control, &gameboy.state.cpu.registers);
+  gameboy.state.memory.write_u8(
+    INTERRUPTS_ENABLED_ADDRESS,
+    TIMER,
+    &gameboy.state.cpu.registers,
+  );
+  gameboy.state.memory.write_u8(
+    INTERRUPTS_ENABLED_ADDRESS,
+    VBLANK,
+    &gameboy.state.cpu.registers,
+  );
+
   println!("INIT done, preparing to play");
 
   loop {
