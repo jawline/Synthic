@@ -76,6 +76,14 @@ impl RomChunk {
   fn read_u8(&self, address: u16) -> u8 {
     self.bytes[address as usize]
   }
+
+  /// This function changes ROM in the emulator state.
+  /// It should only be used in special cases when we
+  /// need to program the emulator from code.
+  pub fn force_write_u8(&mut self, address: u16, v: u8) {
+    self.bytes[address as usize] = v
+  }
+
   pub fn from_file(path: &str) -> io::Result<RomChunk> {
     info!("Loading {}", path);
     let mut f = File::open(path)?;
@@ -134,7 +142,7 @@ pub struct GameboyState {
   vram: RamChunk,
   iram: RamChunk,
   high_ram: RamChunk,
-  boot_enabled: bool,
+  pub boot_enabled: bool,
   ram_on: bool,
   ram_mode: bool,
   gamepad_high: bool,
