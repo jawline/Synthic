@@ -79,14 +79,6 @@ The binary files have a fixed 7 byte instruction size (2 bytes for the time
 interval, one byte for channel, one byte for Instruction, and 3 for instruction
 parameters).
 
-
-#### Model Architecture
-
-We model our stream of instructions as text and use a language model to predict
-new outputs. 
-
-**TODO**
-
 ### Usage
 
 In this section we detail the process of collecting usable training data,
