@@ -29,6 +29,7 @@ from parameters import (
     STEP_GAMMA,
     REDUCE_LR_PATIENCE,
     REDUCE_LR_FACTOR,
+    MODEL_DIM,
 )
 
 
@@ -58,7 +59,7 @@ batch normalizing the output.
 
 def AttentionModelLayer(dim, layer_dropout):
     causal = AttentionBlock(dim)
-    forward = FeedForward(dim, FEED_FORWARD_HDIM, layer_dropout)
+    forward = FeedForward(dim, dim * FEED_FORWARD_HDIM, layer_dropout)
     return ModelLayer(dim, causal, forward, layer_dropout)
 
 
@@ -71,7 +72,8 @@ that each apply a local attention layer and then a feedforward layer.
 class GameboyNet(nn.Module):
     def __init__(
         self,
-        dim=256,
+        inp_dim=256,
+        dim=MODEL_DIM,
         num_attention_layers=NUM_ATTENTION_LAYERS,
         layer_dropout=0,
     ):
@@ -87,7 +89,7 @@ class GameboyNet(nn.Module):
 
         # First we embed and then add positional encodings to our input
         # TODO: Try to compress the embedding
-        self.embed = nn.Embedding(dim, dim)
+        self.embed = nn.Embedding(inp_dim, dim)
         self.positional_encoding = PositionalEncoding(dim)
 
         # Build the core of our model by stacking [layers] CausalConvModelLayer instances on top of each other.
@@ -97,7 +99,7 @@ class GameboyNet(nn.Module):
         # Combine all the channels and then activate as a final step
         self.finalize = nn.Sequential(
             *[
-                FeedForward(dim, dim, dropout=layer_dropout),
+                nn.Linear(dim, inp_dim),
             ]
         )
 
@@ -114,7 +116,7 @@ class GameboyNet(nn.Module):
     """
 
     def predict(self, x):
-        # Permute to (batch, seq_len, 256)
+        # Permute to (batch, seq_len, dim)
         return self.forward(x).permute(0, 2, 1)
 
 

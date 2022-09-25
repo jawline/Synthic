@@ -88,6 +88,15 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
         validation_loss = step(validation_loader, False)
         assert validation_loss.item() != math.nan
 
+        if (
+            torch.isnan(loss).item() == True
+            or torch.isnan(validation_loss).item() == True
+        ):
+            print(
+                "Loss or Validation loss was NaN - exiting now. Something has broken."
+            )
+            exit(1)
+
         # Update scheduler based on validation loss
         scheduler_step.step()
         scheduler_base.step(validation_loss)

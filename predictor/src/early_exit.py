@@ -4,7 +4,7 @@ import torch
 class EarlyExit:
     def __init__(self, lookback_window, tolerence):
         self.tolerence = tolerence
-        self.lookback_window
+        self.lookback_window = lookback_window
         self.bad_rounds = 0
         self.last_losses = torch.as_tensor([])
 

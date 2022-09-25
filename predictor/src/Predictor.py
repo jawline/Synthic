@@ -21,7 +21,7 @@ from model import load_gameboy_net
 from trainer import train
 from music_generator import generate_a_song
 
-from parameters import WINDOW_SIZE
+from parameters import BATCH_SIZE, WINDOW_SIZE
 
 # Pytorch setup
 import torch
@@ -68,7 +68,7 @@ def load_a_dataset(path):
     return torch.utils.data.DataLoader(
         SampleDataset(path, window_size=WINDOW_SIZE, start_at_sample=False),
         num_workers=1,
-        batch_size=8,
+        batch_size=BATCH_SIZE,
     )
 
 

@@ -1,5 +1,6 @@
 import math
 from torch import nn
+from parameters import ACTIVATION
 
 
 class FeedForward(nn.Module):
@@ -8,7 +9,7 @@ class FeedForward(nn.Module):
         self.layer = nn.Sequential(
             *[
                 nn.Linear(dim, expansion_dim),
-                nn.ReLU(),  # TODO: Play with different activations?
+                ACTIVATION(),
                 nn.Dropout(dropout),
                 nn.Linear(expansion_dim, dim),
             ]
