@@ -1,0 +1,19 @@
+#!/bin/bash
+
+_terminate_children() {
+        trap "exit 143" SIGTERM && kill -- "-$$"
+}
+
+trap _terminate_children SIGINT SIGTERM
+
+tout="$1"
+shift
+eval "$@" | tee >(while :; do
+   read -t "$tout"
+   case $? in
+      0) : ;;
+      1) break ;;
+      *) _terminate_children ;;
+   esac
+done)
+exit "${PIPESTATUS[0]}"

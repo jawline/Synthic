@@ -1,6 +1,6 @@
 use crate::cpu::Registers;
 use crate::util::{stat_interrupts_with_masked_flags, STAT};
-use log::{error, info, trace, warn};
+use log::{info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io;
@@ -181,6 +181,9 @@ pub struct GameboyState {
    * Print sound register changes to stdout
    */
   pub print_sound_registers: bool,
+
+  /// Disable writes from 0x4000-0x5FFF for gbs playback
+  pub disable_rom_upper_writes: bool
 }
 
 impl GameboyState {
@@ -222,6 +225,7 @@ impl GameboyState {
       gamepad_high: false,
 
       print_sound_registers,
+      disable_rom_upper_writes: false
     }
   }
 
@@ -308,10 +312,14 @@ impl GameboyState {
   }
 
   fn set_rom_bank_upper(&mut self, bank: u8) {
-    let bank = (bank & 0x3) << 5;
-    let bank = bank as usize + self.rom_bank;
-    self.rom_bank = bank;
-    info!("set rom bank upper 2 bits {} {}", bank, self.rom_bank);
+    if self.disable_rom_upper_writes {
+        trace!("not setting ROM bank because we are in GBS mode");
+    } else {
+        let bank = (bank & 0x3) << 5;
+        let bank = bank as usize + self.rom_bank;
+        self.rom_bank = bank;
+        info!("set rom bank upper 2 bits {} {}", bank, self.rom_bank);
+    }
   }
 }
 
@@ -372,8 +380,7 @@ impl GameboyState {
       self.iram.write_u8(address - END_OF_CARTRIDGE_RAM, val)
     } else if address < END_OF_ECHO_RAM {
       // TODO: mirror ram, do I need?
-      error!("illegal write to {:x}", address);
-      unimplemented!();
+      warn!("illegal write to {:x}", address);
     } else {
       self.write_high_mem(address, val);
     }

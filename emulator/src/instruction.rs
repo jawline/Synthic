@@ -1081,6 +1081,7 @@ fn ccf(registers: &mut Registers, _memory: &mut GameboyState, _additional: &Inst
 
 /// Push current PC to stack then jump to n (8-bit immediate)
 fn rst_n(registers: &mut Registers, memory: &mut GameboyState, additional: &InstructionData) {
+  println!("RST");
   registers.inc_pc(1);
   registers.stack_push16(registers.pc(), memory);
   registers.set_pc(additional.code as u16);

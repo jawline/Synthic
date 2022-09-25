@@ -3,22 +3,20 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::str::from_utf8;
-use std::{thread, time};
 
-use gb_int::encoded_file::*;
+use std::sync::mpsc;
+
 use gb_int::{
   clock::Clock,
-  cpu::{INTERRUPTS_ENABLED_ADDRESS, Cpu},
+  cpu::{TIMER, VBLANK, INTERRUPTS_ENABLED_ADDRESS, Cpu},
   instruction::InstructionSet,
   machine::{Machine, MachineState},
   memory::{GameboyState, RomChunk},
-  ppu::{PpuStepState, Ppu},
-  register::SmallWidthRegister,
+  ppu::{Ppu},
   sound,
   sound::Sound,
 };
 
-const MAGIC_ADDRESS: u16 = 0x0;
 
 #[repr(C, packed(1))]
 struct GbsHeader {
@@ -63,6 +61,10 @@ impl GbsHeader {
 struct Opts {
   #[clap(short, long)]
   playback_file: String,
+  #[clap(short, long)]
+  track: u8,
+  #[clap(short, long)]
+  disable_sound: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -89,10 +91,16 @@ fn main() -> Result<(), Box<dyn Error>> {
   let play_address = header.play_address;
   let timer_modulo = header.timer_modulo;
   let timer_control = header.timer_control;
+  let song_count = header.song_count;
+
+  if opts.track >= song_count {
+      println!("Song requested exceeds song count");
+      return Ok(())
+  }
 
   println!(
-    "Load: {:x} Init: {:x} Play: {:x} TAC: {:x} TIMA: {:x}",
-    load_address, init_address, play_address, timer_modulo, timer_control
+    "Load: {:x} Init: {:x} Play: {:x} TIMER MODULO: {:x} TIMER CONTROL: {:x} TRACKS: {}",
+    load_address, init_address, play_address, timer_modulo, timer_control, song_count
   );
 
   let data = &buffer[std::mem::size_of::<GbsHeader>()..];
@@ -109,23 +117,34 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   println!("Programming custom logic");
 
+  let start_of_custom_code = 0x100;
+
+
+  // For each RST jump to load_address + RST
+  for addr in [0x0, 0x8, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] { 
+    let address = load_address + addr;
+    sound_rom.force_write_u8(addr, 0xC3);
+    sound_rom.force_write_u8(addr + 1, address.to_le_bytes()[0]);
+    sound_rom.force_write_u8(addr + 2, address.to_le_bytes()[1]);
+  }
+
   // Write JMP 0 at 0
-  sound_rom.force_write_u8(0, 0xC3);
-  sound_rom.force_write_u8(1, 0x0);
-  sound_rom.force_write_u8(2, 0x0);
+  sound_rom.force_write_u8(start_of_custom_code + 0, 0xC3);
+  sound_rom.force_write_u8(start_of_custom_code + 1, start_of_custom_code.to_le_bytes()[0]);
+  sound_rom.force_write_u8(start_of_custom_code + 2, start_of_custom_code.to_le_bytes()[1]);
 
   // Write SET A 1, CALL INIT, CALL PLAY, JP 0, at 0x3
-  sound_rom.force_write_u8(0x3, 0x3E);
-  sound_rom.force_write_u8(0x4, 0x1);
-  sound_rom.force_write_u8(0x5, 0xCD);
-  sound_rom.force_write_u8(0x6, init_address.to_le_bytes()[0]);
-  sound_rom.force_write_u8(0x7, init_address.to_le_bytes()[1]);
-  sound_rom.force_write_u8(0x8, 0xCD);
-  sound_rom.force_write_u8(0x9, play_address.to_le_bytes()[0]);
-  sound_rom.force_write_u8(0xA, play_address.to_le_bytes()[1]);
-  sound_rom.force_write_u8(0xB, 0xC3);
-  sound_rom.force_write_u8(0xC, 0);
-  sound_rom.force_write_u8(0xD, 0);
+  sound_rom.force_write_u8(start_of_custom_code + 0x3, 0x3E);
+  sound_rom.force_write_u8(start_of_custom_code + 0x4, opts.track);
+  sound_rom.force_write_u8(start_of_custom_code + 0x5, 0xCD);
+  sound_rom.force_write_u8(start_of_custom_code + 0x6, init_address.to_le_bytes()[0]);
+  sound_rom.force_write_u8(start_of_custom_code + 0x7, init_address.to_le_bytes()[1]);
+  sound_rom.force_write_u8(start_of_custom_code + 0x8, 0xCD);
+  sound_rom.force_write_u8(start_of_custom_code + 0x9, play_address.to_le_bytes()[0]);
+  sound_rom.force_write_u8(start_of_custom_code + 0xA, play_address.to_le_bytes()[1]);
+  sound_rom.force_write_u8(start_of_custom_code + 0xB, 0xC3);
+  sound_rom.force_write_u8(start_of_custom_code + 0xC, start_of_custom_code.to_le_bytes()[0]);
+  sound_rom.force_write_u8(start_of_custom_code + 0xD, start_of_custom_code.to_le_bytes()[1]);
 
 
   // Write CALL play, EI, JMP 0 to the VBLANK address
@@ -134,10 +153,17 @@ fn main() -> Result<(), Box<dyn Error>> {
   sound_rom.force_write_u8(0x42, play_address.to_le_bytes()[1]);
   sound_rom.force_write_u8(0x43, 0xFB);
   sound_rom.force_write_u8(0x44, 0xC3);
-  sound_rom.force_write_u8(0x45, 0);
-  sound_rom.force_write_u8(0x46, 0);
+  sound_rom.force_write_u8(0x45, start_of_custom_code.to_le_bytes()[0]);
+  sound_rom.force_write_u8(0x46, start_of_custom_code.to_le_bytes()[1]);
 
-
+  // Write CALL play, EI, JMP 0 to the TIMER address
+  sound_rom.force_write_u8(0x50, 0xCD);
+  sound_rom.force_write_u8(0x51, play_address.to_le_bytes()[0]);
+  sound_rom.force_write_u8(0x52, play_address.to_le_bytes()[1]);
+  sound_rom.force_write_u8(0x53, 0xFB);
+  sound_rom.force_write_u8(0x54, 0xC3);
+  sound_rom.force_write_u8(0x55, start_of_custom_code.to_le_bytes()[0]);
+  sound_rom.force_write_u8(0x56, start_of_custom_code.to_le_bytes()[1]);
 
   println!("Programmed ROM");
 
@@ -147,7 +173,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   println!("Disabled boot mode");
 
-  let mut gameboy_state = MachineState {
+  let gameboy_state = MachineState {
     cpu: Cpu::new(),
     ppu: Ppu::new(),
     clock: Clock::new(),
@@ -155,17 +181,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     memory: root_map,
   };
 
-  let (_device, _stream, sample_rate, sound_tx) = sound::open_device()?;
+  // TODO: Make this a switch
+  let (sample_rate, sound_tx) = if opts.disable_sound {
+    println!("Using a dummy sound device");
+    let (sound_tx, _sound_rx) = mpsc::channel();
+    (1_000_000, sound_tx)
+  } else {
+    println!("Opening real sound device");
+    let (_device, _stream, sample_rate, sound_tx) = sound::open_device()?;
+    (sample_rate, sound_tx)
+  };
+    
   println!("Opened sound device");
 
-  /// This will be unused but we need to provide a buffer. Make it small so we crash if
-  /// disable_framebuffer isn't working
+  // This will be unused but we need to provide a buffer. Make it small so we crash if
+  // disable_framebuffer isn't working
   let mut pixel_buffer = vec![0; 1];
 
   let mut gameboy = Machine {
     state: gameboy_state,
     instruction_set: InstructionSet::new(),
-    disable_sound: false,
+    disable_sound: opts.disable_sound,
     disable_framebuffer: true,
   };
 
@@ -177,9 +213,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     gameboy.state.cpu.registers.sp()
   );
 
-  gameboy.state.cpu.registers.set_pc(0x3);
+  gameboy.state.cpu.registers.set_pc(start_of_custom_code + 0x3);
   gameboy.state.cpu.registers.ime = true;
-  gameboy.state.memory.write_u8(INTERRUPTS_ENABLED_ADDRESS, 0x1, &gameboy.state.cpu.registers);
+  gameboy.state.memory.disable_rom_upper_writes = true;
+  gameboy.state.memory.print_sound_registers = true;
+
+  // If timer_control or timer_modulo are nonzero then use the timer interrupt otherwise use the
+  // VSync interrupt.
+  
+  gameboy.state.memory.write_u8(0xFF06, timer_modulo, &gameboy.state.cpu.registers);
+  gameboy.state.memory.write_u8(0xFF07, timer_control, &gameboy.state.cpu.registers);
+  gameboy.state.memory.write_u8(INTERRUPTS_ENABLED_ADDRESS, TIMER, &gameboy.state.cpu.registers);
+  gameboy.state.memory.write_u8(INTERRUPTS_ENABLED_ADDRESS, VBLANK, &gameboy.state.cpu.registers);
  
   println!("INIT done, preparing to play");
 
@@ -188,6 +233,4 @@ fn main() -> Result<(), Box<dyn Error>> {
       gameboy.step(&mut pixel_buffer, sample_rate, &sound_tx);
     }
   }
-
-  Ok(())
 }

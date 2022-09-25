@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+./scripts/build
+find "$1" -name "*.gbs" -print0 | xargs -0 -I {} -P 12 timeout 10m ./scripts/play_and_record_gbs "{}"
