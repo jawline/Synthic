@@ -75,7 +75,7 @@ def generate_a_song(loader, load_fn, path, device, output_path):
             for pred in preds:
                 pred = pred.type(torch.float32)
                 pred = (
-                    RelaxedOneHotCategorical(temperature=1.0, logits=pred)
+                    RelaxedOneHotCategorical(temperature=1, logits=pred)
                     .sample()
                     .argmax()
                 )

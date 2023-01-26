@@ -297,7 +297,7 @@ class SampleDataset(torch.utils.data.IterableDataset):
         epoch_data = []
 
         for (name, data) in self.file_datas:
-            for _i in range(10):
+            for _i in range(20):
                 next_step_data = self.random_start_offset(data)
                 epoch_data.append(next_step_data)
 

@@ -27,12 +27,11 @@ fn main() -> Result<(), Box<dyn Error>> {
   let opts: Opts = Opts::parse();
   let instructions = parse_file(&opts.file)?;
 
-  let sample_rate = 48000;
   let (sound_tx, sound_rx) = mpsc::channel();
 
   let wav_spec = hound::WavSpec {
     channels: 1,
-    sample_rate: sample_rate as u32,
+    sample_rate: VEC_SAMPLE_RATE as u32,
     bits_per_sample: 16,
     sample_format: hound::SampleFormat::Int,
   };
@@ -45,13 +44,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   let mut seconds_of_audio = 0.;
 
-  let res = to_wave(&instructions, sound_tx, sample_rate, || {
+  let res = to_wave(&instructions, sound_tx, VEC_SAMPLE_RATE, || {
     while let Ok(sample) = sound_rx.try_recv() {
       let sample = (sample * (i16::MAX as f32)) as i16;
       max_sample = std::cmp::max(sample, max_sample);
       min_sample = std::cmp::min(sample, min_sample);
       samples += 1;
-      seconds_of_audio = samples as f64 / sample_rate as f64;
+      seconds_of_audio = samples as f64 / VEC_SAMPLE_RATE as f64;
       writer.write_sample(sample)?;
     }
 

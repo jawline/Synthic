@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-python3 predictor/src/Predictor.py --mode train --training-data ~/scratch/training-data --test-data ~/scratch/test_data --model-dir ./local.model/ --output-path /tmp/ | tee -a training-log
+python3 predictor/src/Predictor.py --mode train --training-data ~/gb-sounds/training-data --test-data ~/gb-sounds/testing-data --model-dir ./local.model/ --output-path /tmp/ | tee -a training-log
