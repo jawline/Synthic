@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   println!("{}", header.copyright());
 
   let boot_rom = RomChunk::empty(256);
-  let mut sound_rom = RomChunk::empty(0x10000);
+  let mut sound_rom = RomChunk::empty(0x8000);
 
   let load_address = header.load_address;
   let init_address = header.init_address;
@@ -190,15 +190,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     memory: root_map,
   };
 
-  // TODO: Make this a switch
-  let (sample_rate, sound_tx) = if opts.disable_sound {
+  // Drop will cause the device to terminate and close the stream
+  // so we need to return it from the if.
+  let (_device, _stream, sample_rate, sound_tx) = if opts.disable_sound {
     println!("Using a dummy sound device");
     let (sound_tx, _sound_rx) = mpsc::channel();
-    (1_000_000, sound_tx)
+    (None, None, 1_000_000, sound_tx)
   } else {
     println!("Opening real sound device");
-    let (_device, _stream, sample_rate, sound_tx) = sound::open_device()?;
-    (sample_rate, sound_tx)
+    let (device, stream, sample_rate, sound_tx) = sound::open_device()?;
+    (Some(device), Some(stream), sample_rate, sound_tx)
   };
 
   println!("Opened sound device");
@@ -217,6 +218,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   println!("Machine created");
 
   gameboy.state.cpu.registers.set_sp(header.stack_pointer);
+
   println!(
     "Set stack pointer to {:x}",
     gameboy.state.cpu.registers.sp()
@@ -227,6 +229,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .cpu
     .registers
     .set_pc(start_of_custom_code + 0x3);
+
   gameboy.state.cpu.registers.ime = true;
   gameboy.state.memory.disable_rom_upper_writes = true;
   gameboy.state.memory.print_sound_registers = true;
@@ -238,10 +241,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     .state
     .memory
     .write_u8(0xFF06, timer_modulo, &gameboy.state.cpu.registers);
+
   gameboy
     .state
     .memory
     .write_u8(0xFF07, timer_control, &gameboy.state.cpu.registers);
+
   gameboy.state.memory.write_u8(
     INTERRUPTS_ENABLED_ADDRESS,
     TIMER,

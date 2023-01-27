@@ -4,8 +4,7 @@ use crate::memory::GameboyState;
 use crate::memory::{isset16, isset32, isset8};
 use crate::register::{SmallWidthRegister, WideRegister};
 use crate::util::{
-  carries_add16_signed_8bit, carries_add8, carries_add8_with_carry, carries_sub16_signed_8bit,
-  carries_sub8_with_carry, half_carry_add8, half_carry_sub8,
+  carries_add8, carries_add8_with_carry, carries_sub8_with_carry, half_carry_add8, half_carry_sub8,
 };
 use log::trace;
 
@@ -816,12 +815,30 @@ fn add_r16_r16(
   registers.inc_pc(1);
 }
 
+fn register_plus_signed_8_bit_immediate(acc: i16, immediate: i8, registers: &mut Registers) -> i16 {
+  let signed_immediate: i16 = ((immediate & 127) - (immediate & (-128))) as i16;
+  let result = acc + signed_immediate;
+
+  if signed_immediate >= 0 {
+    let carry = ((acc & 0xFF) + signed_immediate) > 0xFF;
+    let half_carry = ((acc & 0xF) + signed_immediate) > 0xF;
+    registers.set_flags(false, false, half_carry, carry);
+  } else {
+    let carry = (result & 0xFF) <= (acc & 0xFF);
+    let half_carry = (result & 0xF) <= (acc & 0xF);
+    registers.set_flags(false, false, half_carry, carry);
+  }
+
+  result
+}
+
 /// Add an immediate byte (signed) to a wide register
 fn add_r16_n(registers: &mut Registers, memory: &mut GameboyState, additional: &InstructionData) {
-  let l = registers.read_r16(additional.wide_reg_dst);
-  let add_v = memory.read_u8(registers.pc() + 1);
-  let result = register_plus_signed_8_bit_immediate(l, add_v, registers);
-
+  let result = register_plus_signed_8_bit_immediate(
+    registers.read_r16(additional.wide_reg_dst) as i16,
+    memory.read_u8(registers.pc() + 1) as i8,
+    registers,
+  ) as u16;
   registers.write_r16(additional.wide_reg_dst, result);
   registers.inc_pc(2);
 }
@@ -835,35 +852,17 @@ fn ld_r16_r16(registers: &mut Registers, _memory: &mut GameboyState, additional:
   );
 }
 
-fn register_plus_signed_8_bit_immediate(
-  mut acc: u16,
-  immediate: u8,
-  registers: &mut Registers,
-) -> u16 {
-  if isset8(immediate, 0x80) {
-    let immediate = (!immediate) + 1;
-    let (half_carry, carry) = carries_sub16_signed_8bit(acc, immediate);
-    let immediate = immediate as u16;
-    acc -= immediate;
-    registers.set_flags(false, false, half_carry, carry);
-  } else {
-    let (half_carry, carry) = carries_add16_signed_8bit(acc, immediate);
-    acc += immediate as u16;
-    registers.set_flags(false, false, half_carry, carry);
-  }
-
-  acc
-}
-
 /// Add an immediate byte (signed) to wide reg one and then save it to wide reg dst
 fn ld_r16_r16_plus_n(
   registers: &mut Registers,
   memory: &mut GameboyState,
   additional: &InstructionData,
 ) {
-  let l = registers.read_r16(additional.wide_reg_one);
-  let add_v = memory.read_u8(registers.pc() + 1);
-  let result = register_plus_signed_8_bit_immediate(l, add_v, registers);
+  let result = register_plus_signed_8_bit_immediate(
+    registers.read_r16(additional.wide_reg_one) as i16,
+    memory.read_u8(registers.pc() + 1) as i8,
+    registers,
+  ) as u16;
 
   registers.write_r16(additional.wide_reg_dst, result);
   registers.inc_pc(2);
@@ -1081,7 +1080,7 @@ fn ccf(registers: &mut Registers, _memory: &mut GameboyState, _additional: &Inst
 
 /// Push current PC to stack then jump to n (8-bit immediate)
 fn rst_n(registers: &mut Registers, memory: &mut GameboyState, additional: &InstructionData) {
-  println!("RST");
+  println!("RST {:x}", additional.code);
   registers.inc_pc(1);
   registers.stack_push16(registers.pc(), memory);
   registers.set_pc(additional.code as u16);

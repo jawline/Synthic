@@ -96,8 +96,8 @@ fn main() -> Result<(), Box<dyn Error>> {
       let rough_seconds = wave.len() as f64 / VEC_SAMPLE_RATE as f64;
 
       if rough_seconds < 5. {
-          println!("Ignoring a short sample");
-          continue 'outer;
+        println!("Ignoring a short sample");
+        continue 'outer;
       }
 
       let path = format!("{}/{}", opts.out, chunk_idx);

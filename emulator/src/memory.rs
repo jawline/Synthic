@@ -328,7 +328,7 @@ impl GameboyState {
     if address == GAMEPAD_ADDRESS {
       self.gamepad_write(val);
     } else if address == 0xFF02 && val == 0x81 {
-      //print!("{}", self.read_u8(0xFF01) as char);
+      print!("{}", self.read_u8(0xFF01) as char);
     } else if address == DIV_REGISTER {
       self.div = 0;
     } else if address == TIMA_REGISTER {

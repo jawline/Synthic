@@ -39,7 +39,7 @@ struct Opts {
   frameskip_rate: u32,
   #[clap(short, long)]
   disable_sound: bool,
-  #[clap(short, long)]
+  #[clap(long)]
   disable_framebuffer: bool,
 }
 
