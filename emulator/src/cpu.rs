@@ -54,7 +54,7 @@ pub struct Registers {
   pub ime: bool,
 
   /// How many cycles passed in the last CPU step
-  pub last_clock: u16,
+  pub cycles_elapsed_during_last_step: u16,
   pub total_clock: usize,
 }
 
@@ -314,15 +314,9 @@ impl Cpu {
     if !self.registers.halted {
       let opcode = memory.core_read(self.registers.pc());
 
-      let inst;
+      let inst = &instructions.instructions[opcode as usize];
 
-      if self.registers.escaped {
-        trace!("Selected opcode from extended set since escaped is set");
-        inst = &instructions.ext_instructions[opcode as usize];
-        self.registers.escaped = false;
-      } else {
-        inst = &instructions.instructions[opcode as usize];
-      }
+
 
       debug!(
         "INSTR={} PC={:x} SP={:x} BC={:x} AF={:x} DE={:x} HL={:x}\n B={:x} C={:x} A={:x} F={:x} D={:x} E={:x} H={:x} L={:x} Z={} N={} H={} C={} HALTED={} IME={}",
@@ -341,18 +335,24 @@ impl Cpu {
       );
 
       trace!("{} ({:x})", inst.text, opcode);
-      self.registers.last_clock = 0;
+      self.registers.cycles_elapsed_during_last_step = inst.cycles;
       (inst.execute)(&mut self.registers, memory);
-      //trace!("post-step: {:?}", self.registers);
-      // Some instructions mutate the last clock like JR
-      self.registers.last_clock += inst.cycles;
+
+      /* If the instruction was an escape code then we immediately re-run with the new PC using the
+        extended instruction set. We execute it immediately to avoid the escaped flag behaving
+        weirdly with an interrupt trigger. */
+      if self.registers.escaped {
+        trace!("Selected opcode from extended set since escaped is set");
+        let opcode = memory.core_read(self.registers.pc());
+        let inst = &instructions.ext_instructions[opcode as usize];
+        self.registers.escaped = false; 
+        (inst.execute)(&mut self.registers, memory);
+      } 
     } else {
-      self.registers.last_clock = 4;
+      self.registers.cycles_elapsed_during_last_step = 4;
     }
 
-    if !self.registers.escaped {
-      // if ime is flagged on and there is an interrupt waiting then trigger it
-      self.check_interrupt(memory);
-    }
+    // if ime is flagged on and there is an interrupt waiting then trigger it
+    self.check_interrupt(memory);
   }
 }

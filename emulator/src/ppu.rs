@@ -471,11 +471,11 @@ impl Ppu {
     draw: &mut [u8],
     disable_framebuffer: bool,
   ) -> PpuStepState {
-    self.cycles_in_mode += cpu.registers.last_clock;
+    self.cycles_in_mode += cpu.registers.cycles_elapsed_during_last_step;
     trace!(
       "Ppu mode {:?} step by {} to {}",
       self.mode,
-      cpu.registers.last_clock,
+      cpu.registers.cycles_elapsed_during_last_step,
       self.cycles_in_mode
     );
 

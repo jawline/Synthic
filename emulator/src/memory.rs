@@ -147,7 +147,7 @@ pub struct GameboyState {
   ram_mode: bool,
   gamepad_high: bool,
 
-  pub last_clock: usize,
+  pub cycles_elapsed_during_last_step: usize,
 
   pub cart_type: u8,
 
@@ -200,7 +200,7 @@ impl GameboyState {
       boot_enabled: true,
       ram_on: false,
       ram_mode: false,
-      last_clock: 0,
+      cycles_elapsed_during_last_step: 0,
 
       /// The divider starts at zero
       div: 0,
@@ -392,11 +392,11 @@ impl GameboyState {
         println!(
           "SWEEP {} AT {}",
           val,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
 
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF11 {
@@ -408,10 +408,10 @@ impl GameboyState {
           "CH 1 DUTYLL {} {} AT {}",
           duty,
           length,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF12 {
@@ -425,10 +425,10 @@ impl GameboyState {
           vol,
           add_mode,
           period,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF13 {
@@ -436,10 +436,10 @@ impl GameboyState {
         println!(
           "CH 1 FREQLSB {} AT {}",
           val,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF14 {
@@ -453,10 +453,10 @@ impl GameboyState {
           msb,
           le,
           trigger,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF16 {
@@ -468,10 +468,10 @@ impl GameboyState {
           "CH 2 DUTYLL {} {} AT {}",
           duty,
           length,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF17 {
@@ -485,10 +485,10 @@ impl GameboyState {
           vol,
           add_mode,
           period,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF18 {
@@ -496,10 +496,10 @@ impl GameboyState {
         println!(
           "CH 2 FREQLSB {} AT {}",
           val,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     if address == 0xFF19 {
@@ -513,11 +513,11 @@ impl GameboyState {
           msb,
           le,
           trigger,
-          registers.total_clock - self.last_clock
+          registers.total_clock - self.cycles_elapsed_during_last_step
         );
       }
 
-      self.last_clock = registers.total_clock;
+      self.cycles_elapsed_during_last_step = registers.total_clock;
     }
 
     self.core_write(address, val)

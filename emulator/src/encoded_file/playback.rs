@@ -78,7 +78,7 @@ where
     memory: root_map,
   };
 
-  gameboy_state.cpu.registers.last_clock = 4;
+  gameboy_state.cpu.registers.cycles_elapsed_during_last_step = 4;
 
   let mut next = 0;
   let mut elapsed = 0;

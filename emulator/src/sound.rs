@@ -678,7 +678,7 @@ impl Sound {
 
     // Now process the frame
     let sample_divisor = (GAMEBOY_FREQUENCY / sample_rate) + 1;
-    for _ in (0..cpu.registers.last_clock).step_by(4) {
+    for _ in (0..cpu.registers.cycles_elapsed_during_last_step).step_by(4) {
       self.channels.step(mem);
       self.sequencer.step(mem, &mut self.channels);
       self.t_cycles += 4;

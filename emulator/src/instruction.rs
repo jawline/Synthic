@@ -901,7 +901,7 @@ fn jump_relative_signed_immediate(
   let byte = memory.read_u8(registers.pc() + 1) as i8;
   registers.inc_pc(2);
   if (registers.flags() & additional.flag_mask) == additional.flag_expected {
-    registers.last_clock = 4;
+    registers.cycles_elapsed_during_last_step += 4;
     registers.jump_relative(byte);
   }
 }
@@ -910,7 +910,7 @@ fn jump_relative_signed_immediate(
 fn ret(registers: &mut Registers, memory: &mut GameboyState, additional: &InstructionData) {
   registers.inc_pc(1);
   if (registers.flags() & additional.flag_mask) == additional.flag_expected {
-    registers.last_clock = 12;
+    registers.cycles_elapsed_during_last_step += 12;
     let ret_pc = registers.stack_pop16(memory);
     registers.set_pc(ret_pc);
   }
@@ -954,7 +954,7 @@ fn jump_immediate(
   let target_address = memory.read_u16(registers.pc() + 1);
   registers.inc_pc(3);
   if (registers.flags() & additional.flag_mask) == additional.flag_expected {
-    registers.last_clock = 4;
+    registers.cycles_elapsed_during_last_step += 4;
     registers.set_pc(target_address);
   }
 }
@@ -981,7 +981,7 @@ fn call_immediate(
   let target_address = memory.read_u16(registers.pc() + 1);
   registers.inc_pc(3);
   if (registers.flags() & additional.flag_mask) == additional.flag_expected {
-    registers.last_clock = 12;
+    registers.cycles_elapsed_during_last_step += 12;
     registers.stack_push16(registers.pc(), memory);
     registers.set_pc(target_address);
   }
@@ -1080,7 +1080,7 @@ fn ccf(registers: &mut Registers, _memory: &mut GameboyState, _additional: &Inst
 
 /// Push current PC to stack then jump to n (8-bit immediate)
 fn rst_n(registers: &mut Registers, memory: &mut GameboyState, additional: &InstructionData) {
-  println!("RST {:x}", additional.code);
+  trace!("RST {:x}", additional.code);
   registers.inc_pc(1);
   registers.stack_push16(registers.pc(), memory);
   registers.set_pc(additional.code as u16);
@@ -2473,7 +2473,7 @@ pub fn instruction_set() -> Vec<Instruction> {
     InstructionData::const_default().with_flag(ZERO_FLAG, ZERO_FLAG)
   );
 
-  let escape = instr!("ESCAPE", 4, escape, InstructionData::const_default());
+  let escape = instr!("ESCAPE", 0, escape, InstructionData::const_default());
 
   let callz = instr!(
     "callz NN",

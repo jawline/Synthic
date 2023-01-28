@@ -4,6 +4,7 @@ import random
 
 
 def copy_file(src_file, dst_dir):
+    print("Make", dst_dir + "/" + os.path.dirname(src_file))
     os.makedirs(dst_dir + "/" + os.path.dirname(src_file), exist_ok=True)
     shutil.copyfile(src_file, dst_dir + "/" + src_file)
 
@@ -26,6 +27,7 @@ def split_training_dir_into_training_and_test_dir(
     test_files = files[num_files_train:]
 
     for f in train_files:
+        print("Copy " + f)
         copy_file(f, out_dir_training)
 
     for f in test_files:
