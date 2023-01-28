@@ -316,8 +316,6 @@ impl Cpu {
 
       let inst = &instructions.instructions[opcode as usize];
 
-
-
       debug!(
         "INSTR={} PC={:x} SP={:x} BC={:x} AF={:x} DE={:x} HL={:x}\n B={:x} C={:x} A={:x} F={:x} D={:x} E={:x} H={:x} L={:x} Z={} N={} H={} C={} HALTED={} IME={}",
         inst.text,
@@ -339,15 +337,15 @@ impl Cpu {
       (inst.execute)(&mut self.registers, memory);
 
       /* If the instruction was an escape code then we immediately re-run with the new PC using the
-        extended instruction set. We execute it immediately to avoid the escaped flag behaving
-        weirdly with an interrupt trigger. */
+      extended instruction set. We execute it immediately to avoid the escaped flag behaving
+      weirdly with an interrupt trigger. */
       if self.registers.escaped {
         trace!("Selected opcode from extended set since escaped is set");
         let opcode = memory.core_read(self.registers.pc());
         let inst = &instructions.ext_instructions[opcode as usize];
-        self.registers.escaped = false; 
+        self.registers.escaped = false;
         (inst.execute)(&mut self.registers, memory);
-      } 
+      }
     } else {
       self.registers.cycles_elapsed_during_last_step = 4;
     }

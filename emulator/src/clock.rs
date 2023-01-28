@@ -1,15 +1,20 @@
 use crate::cpu::Registers;
 use crate::cpu::{Cpu, TIMER};
+use crate::instruction_clock::InstructionClock;
 use crate::memory::{isset16, isset8, GameboyState, MOD_REGISTER, TAC_REGISTER, TIMA_REGISTER};
 use log::trace;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct Clock {}
+pub struct Clock {
+  div_clock: InstructionClock,
+}
 
 impl Clock {
   pub fn new() -> Self {
-    Self {}
+    Self {
+      div_clock: InstructionClock::new(256),
+    }
   }
 
   fn tac(&mut self, mem: &mut GameboyState) -> u8 {
@@ -17,15 +22,15 @@ impl Clock {
   }
 
   fn update_div(&mut self, instruction_time: u8, mem: &mut GameboyState) -> u16 {
-    let operand = instruction_time as u16;
-    let result = mem.div.wrapping_add(operand);
-    let carries = result ^ mem.div ^ operand;
+    let div_clocks_this_cycle = self.div_clock.step(instruction_time as usize);
+    let result = mem
+      .div
+      .wrapping_add(div_clocks_this_cycle);
+    let carries = result ^ mem.div ^ div_clocks_this_cycle;
     mem.div = result;
     trace!(
       "DIV: {} (incremented by {}, carries={:16b})",
-      mem.div,
-      instruction_time,
-      carries
+      mem.div, instruction_time, carries
     );
     carries
   }
