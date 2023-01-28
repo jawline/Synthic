@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   println!("{}", header.copyright());
 
   let boot_rom = RomChunk::empty(256);
-  let mut sound_rom = RomChunk::empty(0x8000);
+  let mut sound_rom = RomChunk::empty(0x10000);
 
   let load_address = header.load_address;
   let init_address = header.init_address;
@@ -123,11 +123,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   // For each RST jump to load_address + RST
   for addr in [0x0, 0x8, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] {
-    let address = load_address + addr;
-
     write_machine_code(
       &[Jump {
-        address: Absolute(address),
+        address: Absolute(load_address + addr),
       }],
       |index, byte| {
         sound_rom.force_write_u8(addr + index, byte);
