@@ -8,8 +8,9 @@ use std::sync::mpsc;
 
 use gb_int::{
   clock::Clock,
-  cpu::{Cpu, INTERRUPTS_ENABLED_ADDRESS, TIMER, VBLANK},
+  cpu::{Cpu, INTERRUPTS_ENABLED_ADDRESS, TIMER, TIMER_ADDRESS, VBLANK, VBLANK_ADDRESS},
   instruction::InstructionSet,
+  instruction_compiler::{write_machine_code, Address, Program},
   machine::{Machine, MachineState},
   memory::{GameboyState, RomChunk},
   ppu::Ppu,
@@ -117,62 +118,80 @@ fn main() -> Result<(), Box<dyn Error>> {
   println!("Programming custom logic");
 
   let start_of_custom_code = 0x100;
+  use Address::*;
+  use Program::*;
 
   // For each RST jump to load_address + RST
   for addr in [0x0, 0x8, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] {
     let address = load_address + addr;
-    sound_rom.force_write_u8(addr, 0xC3);
-    sound_rom.force_write_u8(addr + 1, address.to_le_bytes()[0]);
-    sound_rom.force_write_u8(addr + 2, address.to_le_bytes()[1]);
+
+    write_machine_code(
+      &[Jump {
+        address: Absolute(address),
+      }],
+      |index, byte| {
+        sound_rom.force_write_u8(addr + index, byte);
+      },
+    );
   }
 
-  // Write JMP 0 at 0
-  sound_rom.force_write_u8(start_of_custom_code + 0, 0xC3);
-  sound_rom.force_write_u8(
-    start_of_custom_code + 1,
-    start_of_custom_code.to_le_bytes()[0],
-  );
-  sound_rom.force_write_u8(
-    start_of_custom_code + 2,
-    start_of_custom_code.to_le_bytes()[1],
+  // Program a custom piece of code at 0x100 that initializes and then plays the GBS track loaded
+  // at init_address and play_address.
+  write_machine_code(
+    &[
+      /* At 0x100 have Jump 0x100 to create a return loop */
+      Jump {
+        address: Absolute(start_of_custom_code),
+      },
+      /* Set A register to track */
+      SetA {
+        immediate: opts.track,
+      },
+      /* Call INIT address in GBS header */
+      Call {
+        address: Absolute(init_address),
+      },
+      /* Call PLAY address in GBS header */
+      Call {
+        address: Absolute(play_address),
+      },
+      /* Jump to 0x100 after the ret to sit in a busy loop */
+      Jump {
+        address: Absolute(start_of_custom_code),
+      },
+    ],
+    |index, byte| {
+      sound_rom.force_write_u8(start_of_custom_code + index, byte);
+    },
   );
 
-  // Write SET A 1, CALL INIT, CALL PLAY, JP 0, at 0x3
-  sound_rom.force_write_u8(start_of_custom_code + 0x3, 0x3E);
-  sound_rom.force_write_u8(start_of_custom_code + 0x4, opts.track);
-  sound_rom.force_write_u8(start_of_custom_code + 0x5, 0xCD);
-  sound_rom.force_write_u8(start_of_custom_code + 0x6, init_address.to_le_bytes()[0]);
-  sound_rom.force_write_u8(start_of_custom_code + 0x7, init_address.to_le_bytes()[1]);
-  sound_rom.force_write_u8(start_of_custom_code + 0x8, 0xCD);
-  sound_rom.force_write_u8(start_of_custom_code + 0x9, play_address.to_le_bytes()[0]);
-  sound_rom.force_write_u8(start_of_custom_code + 0xA, play_address.to_le_bytes()[1]);
-  sound_rom.force_write_u8(start_of_custom_code + 0xB, 0xC3);
-  sound_rom.force_write_u8(
-    start_of_custom_code + 0xC,
-    start_of_custom_code.to_le_bytes()[0],
-  );
-  sound_rom.force_write_u8(
-    start_of_custom_code + 0xD,
-    start_of_custom_code.to_le_bytes()[1],
+  let call_play_enable_interrupts_then_busy_loop = [
+    Call {
+      address: Absolute(play_address),
+    },
+    EnableInterrupts,
+    Jump {
+      address: Absolute(start_of_custom_code),
+    },
+  ];
+
+  // Program a custom VBLANK register that calls the play function, enables interrupts, and then
+  // jumps to 0x100. Vblank is commonly used as a song timer to trigger play to be called roughly
+  // once every 60 seconds.
+  write_machine_code(
+    &call_play_enable_interrupts_then_busy_loop,
+    |index, byte| {
+      sound_rom.force_write_u8(VBLANK_ADDRESS + index, byte);
+    },
   );
 
-  // Write CALL play, EI, JMP 0 to the VBLANK address
-  sound_rom.force_write_u8(0x40, 0xCD);
-  sound_rom.force_write_u8(0x41, play_address.to_le_bytes()[0]);
-  sound_rom.force_write_u8(0x42, play_address.to_le_bytes()[1]);
-  sound_rom.force_write_u8(0x43, 0xFB);
-  sound_rom.force_write_u8(0x44, 0xC3);
-  sound_rom.force_write_u8(0x45, start_of_custom_code.to_le_bytes()[0]);
-  sound_rom.force_write_u8(0x46, start_of_custom_code.to_le_bytes()[1]);
-
-  // Write CALL play, EI, JMP 0 to the TIMER address
-  sound_rom.force_write_u8(0x50, 0xCD);
-  sound_rom.force_write_u8(0x51, play_address.to_le_bytes()[0]);
-  sound_rom.force_write_u8(0x52, play_address.to_le_bytes()[1]);
-  sound_rom.force_write_u8(0x53, 0xFB);
-  sound_rom.force_write_u8(0x54, 0xC3);
-  sound_rom.force_write_u8(0x55, start_of_custom_code.to_le_bytes()[0]);
-  sound_rom.force_write_u8(0x56, start_of_custom_code.to_le_bytes()[1]);
+  // Program timer with the same function as VBLANK. In some ROMs this is used.
+  write_machine_code(
+    &call_play_enable_interrupts_then_busy_loop,
+    |index, byte| {
+      sound_rom.force_write_u8(TIMER_ADDRESS + index, byte);
+    },
+  );
 
   println!("Programmed ROM");
 

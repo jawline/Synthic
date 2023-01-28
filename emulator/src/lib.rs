@@ -8,6 +8,7 @@ pub mod encoded_file;
 pub mod frame_timer;
 pub mod headless;
 pub mod instruction;
+pub mod instruction_compiler;
 pub mod instruction_data;
 pub mod machine;
 pub mod memory;
