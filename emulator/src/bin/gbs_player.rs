@@ -165,13 +165,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     },
   );
 
-  let call_play_enable_interrupts_then_busy_loop = [
-    Call {
-      address: Absolute(play_address),
-    },
+  let enable_interrupts_and_jump_to_play_address = [
     EnableInterrupts,
     Jump {
-      address: Absolute(start_of_custom_code),
+      address: Absolute(play_address),
     },
   ];
 
@@ -179,7 +176,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   // jumps to 0x100. Vblank is commonly used as a song timer to trigger play to be called roughly
   // once every 60 seconds.
   write_machine_code(
-    &call_play_enable_interrupts_then_busy_loop,
+    &enable_interrupts_and_jump_to_play_address,
     |index, byte| {
       sound_rom.force_write_u8(VBLANK_ADDRESS + index, byte);
     },
@@ -187,7 +184,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   // Program timer with the same function as VBLANK. In some ROMs this is used.
   write_machine_code(
-    &call_play_enable_interrupts_then_busy_loop,
+    &enable_interrupts_and_jump_to_play_address,
     |index, byte| {
       sound_rom.force_write_u8(TIMER_ADDRESS + index, byte);
     },

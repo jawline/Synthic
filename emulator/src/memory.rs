@@ -152,12 +152,19 @@ pub struct GameboyState {
   pub cart_type: u8,
 
   /**
-   * Current timer state
-   * The div register is really interesting. While reads only give you the lower byte, under the
-   * hood it's actually 16 bits wide and impacts the div and tima.
-   * We store it here so it can be accessed both by the timer module and read by read_u8.
-   */
+   The div register is really interesting. While reads only give you the lower byte, under the
+   hood it's actually 16 bits wide and impacts the div and tima.  We store it here so it can be
+   accessed both by the timer module and read by read_u8.
+  */
   pub div: u16,
+
+  /**
+  The CPU uses this to decide if the clock should accumulate on the step. We do this because the
+  step occurs after the clock, but the div reset would actually occur after it has stepped and
+  this causes a race condition in some timing logic. */
+  pub wrote_div: bool,
+  /** As above, but with the tima register */
+  pub wrote_tima: bool,
 
   /**
    * Rom and Ram bank settings
@@ -204,6 +211,8 @@ impl GameboyState {
 
       /// The divider starts at zero
       div: 0,
+      wrote_div: false,
+      wrote_tima: false,
 
       /**
        * Rom bank defaults
@@ -331,8 +340,10 @@ impl GameboyState {
       print!("{}", self.read_u8(0xFF01) as char);
     } else if address == DIV_REGISTER {
       self.div = 0;
+      self.wrote_div = true;
     } else if address == TIMA_REGISTER {
       self.high_ram.write_u8(address - END_OF_ECHO_RAM, val);
+      self.wrote_tima = true;
     } else if address == TAC_REGISTER {
       self.high_ram.write_u8(address - END_OF_ECHO_RAM, val & 0x7);
     } else if address == 0xFF46 {

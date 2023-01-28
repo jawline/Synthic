@@ -56,6 +56,8 @@ pub struct Registers {
   /// How many cycles passed in the last CPU step
   pub cycles_elapsed_during_last_step: u16,
   pub total_clock: usize,
+  pub wrote_div_on_last_instruction: bool,
+  pub wrote_tima_on_last_instruction: bool,
 }
 
 /// The position of flags in the F register
@@ -311,6 +313,10 @@ impl Cpu {
 
   /// Step the emulator by a single instruction
   pub fn step(&mut self, memory: &mut GameboyState, instructions: &InstructionSet) {
+    // This register tracks if we wrote DIV during this instruction.
+    memory.wrote_div = false;
+    memory.wrote_tima = false;
+
     if !self.registers.halted {
       let opcode = memory.core_read(self.registers.pc());
 
@@ -352,5 +358,16 @@ impl Cpu {
 
     // if ime is flagged on and there is an interrupt waiting then trigger it
     self.check_interrupt(memory);
+
+    // We should only accumulate the clock if we did not reset div this instruction.  TODO: Perhaps
+    // this should be self.registers.cycles_elapsed_during_last_step = 4 for the purpose of
+    // clocking instead, but that would require a second
+    // self.registers.cycles_elapsed_during_last_step just for the clock step.
+    if memory.wrote_div {
+      println!("WROTE DIV");
+    }
+
+    self.registers.wrote_div_on_last_instruction = memory.wrote_div;
+    self.registers.wrote_tima_on_last_instruction = memory.wrote_tima;
   }
 }

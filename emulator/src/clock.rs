@@ -21,17 +21,17 @@ impl Clock {
     mem.core_read(TAC_REGISTER)
   }
 
-  fn update_div(&mut self, instruction_time: u8, mem: &mut GameboyState) -> u16 {
-    let div_clocks_this_cycle = self.div_clock.step(instruction_time as usize);
-    let result = mem
-      .div
-      .wrapping_add(div_clocks_this_cycle);
-    let carries = result ^ mem.div ^ div_clocks_this_cycle;
-    mem.div = result;
+  fn update_div(&mut self, instruction_time: u16, mem: &mut GameboyState) -> u16 {
+    let result = mem.div.wrapping_add(instruction_time);
+    let carries = result ^ mem.div ^ instruction_time;
     trace!(
-      "DIV: {} (incremented by {}, carries={:16b})",
-      mem.div, instruction_time, carries
+      "DIV: {} (origin {}, incremented by {}, carries={:16b})",
+      result,
+      mem.div,
+      instruction_time,
+      carries
     );
+    mem.div = result;
     carries
   }
 
@@ -57,30 +57,34 @@ impl Clock {
     mem: &mut GameboyState,
     registers: &Registers,
   ) {
-    // We split this into 4 cycle instructions so that the carry is correctly respected from div
-    // changes
-    while total_instruction_time > 0 {
-      total_instruction_time -= 4;
-      let div_carries = self.update_div(4, mem);
+    // If we wrote to the DIV register on the last instruction then stepping is incorrect because
+    // the stepping would increment prior to the write.
+    if !registers.wrote_div_on_last_instruction {
+      // We split this into 4 cycle instructions so that the carry is correctly respected from div
+      // changes
+      while total_instruction_time > 0 {
+        total_instruction_time -= 4;
+        let div_carries = self.update_div(4, mem);
 
-      let tac = self.tac(mem);
+        let tac = self.tac(mem);
 
-      if isset8(tac, 0x4) {
-        let tima_should_increment = match tac & 3 {
-          0 => isset16(div_carries, 1 << 10),
-          1 => isset16(div_carries, 1 << 4),
-          2 => isset16(div_carries, 1 << 6),
-          3 => isset16(div_carries, 1 << 8),
-          _ => panic!("tac & 3 should not ever be > 3"),
-        };
-        trace!(
-          "TAC: {} carries {:b} triggered {}",
-          tac & 3,
-          div_carries,
-          tima_should_increment,
-        );
-        if tima_should_increment {
-          self.increment_tima(mem, registers);
+        if isset8(tac, 0x4) {
+          let tima_should_increment = match tac & 3 {
+            0 => isset16(div_carries, 1 << 10),
+            1 => isset16(div_carries, 1 << 4),
+            2 => isset16(div_carries, 1 << 6),
+            3 => isset16(div_carries, 1 << 8),
+            _ => panic!("tac & 3 should not ever be > 3"),
+          };
+          trace!(
+            "TAC: {} carries {:b} triggered {}",
+            tac & 3,
+            div_carries,
+            tima_should_increment,
+          );
+          if (!registers.wrote_tima_on_last_instruction) & tima_should_increment {
+            self.increment_tima(mem, registers);
+          }
         }
       }
     }
