@@ -48,8 +48,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("--mode", required=True)
 parser.add_argument("--model-dir", required=True)
-parser.add_argument("--training-data", required=True)
-parser.add_argument("--test-data", required=True)
+parser.add_argument("--data", required=True)
 parser.add_argument("--source-dir", required=False)
 parser.add_argument("--output-path", required=False)
 parser.add_argument("--override-model", required=False)
@@ -59,9 +58,11 @@ args = parser.parse_args()
 model = load_gameboy_net
 
 mode = args.mode
-training_data = args.training_data
-test_data = args.test_data
 model_dir = args.model_dir
+
+
+train_data = args.data + "/train.pt"
+test_data = args.data + "/test.pt"
 
 
 def load_a_dataset(path):
@@ -74,7 +75,7 @@ def load_a_dataset(path):
 
 def train_from(path):
     # Create a standard data loader from our samples
-    loader = load_a_dataset(training_data)
+    loader = load_a_dataset(train_data)
     test_loader = load_a_dataset(test_data)
 
     # Train a model with the data loader
@@ -95,7 +96,6 @@ def generate_from(model_path, output_path):
             test_data,
             window_size=WINDOW_SIZE,
             start_at_sample=True,
-            max_files=1,
             entire_sample=True,
         )
     )
@@ -116,6 +116,4 @@ elif mode == "generate":
     print("Loading model at:", path)
     generate_from(path, args.output_path)
 elif mode == "split_data":
-    split_training_dir_into_training_and_test_dir(
-        args.source_dir, training_data, test_data
-    )
+    split_training_dir_into_training_and_test_dir(args.source_dir, args.data)

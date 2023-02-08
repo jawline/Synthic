@@ -5,5 +5,5 @@ mkdir -p "mechanical_data/${base}/"
 
 for i in {0..40}
 do
-  timeout 1s ./emulator/target/release/gbs_player --disable-sound --playback-file "$1" --track "${i}" &> "mechanical_data/${base}/${timestamp}_${i}"
+  timeout 2s ./emulator/target/release/gbs_player --disable-sound --playback-file "$1" --track "${i}" &> "mechanical_data/${base}/${timestamp}_${i}"
 done

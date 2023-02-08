@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-python3 predictor/src/Predictor.py --mode fresh --training-data ~/scratch/train --test-data ~/scratch/test --model-dir ./local.model/ --output-path /tmp/ | tee -a training-log
+python3 predictor/src/Predictor.py --mode fresh --data ~/scratch/ --model-dir ./local.model/ --output-path /tmp/ | tee -a training-log

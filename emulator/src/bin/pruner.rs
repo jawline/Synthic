@@ -78,35 +78,31 @@ fn main() -> Result<(), Box<dyn Error>> {
   {
     info!("Chunk {}", chunk_idx);
     //let chunk = find_repeating_subsequence(chunk);
-    if chunk.len() > 500 {
-      // Sample every 3s of the wave and reject any candidates with
-      // no sound in a 3s span
-      let wave: Vec<f32> = to_wave_vec(&chunk)?;
+    // Sample every 3s of the wave and reject any candidates with
+    // no sound in a 3s span
+    let wave: Vec<f32> = to_wave_vec(&chunk)?;
 
-      // TODO: This is kind of pointless, either add some useful heuristics like an FFT
-      // or get rid of it.
-      for wave in wave.chunks(VEC_SAMPLE_RATE * 3) {
-        let sampled = Sample::new(wave);
-        println!("{:?}", sampled);
-        if sampled.max_amplitude == 0. || sampled.average_amplitude == 0. {
-          continue 'outer;
-        }
-      }
-
-      let rough_seconds = wave.len() as f64 / VEC_SAMPLE_RATE as f64;
-
-      if rough_seconds < 5. {
-        println!("Ignoring a short sample");
+    for wave in wave.chunks(VEC_SAMPLE_RATE * 3) {
+      let sampled = Sample::new(wave);
+      println!("{:?}", sampled);
+      if sampled.max_amplitude == 0. || sampled.average_amplitude == 0. {
         continue 'outer;
       }
+    }
 
-      let path = format!("{}/{}", opts.out, chunk_idx);
-      println!("Writing next file to {}", path);
-      let mut file = File::create(path)?;
+    let rough_seconds = wave.len() as f64 / VEC_SAMPLE_RATE as f64;
 
-      for instruction in chunk {
-        write!(file, "{}\n", instruction)?;
-      }
+    if rough_seconds < 5. {
+      println!("Ignoring a short sample");
+      continue 'outer;
+    }
+
+    let path = format!("{}/{}", opts.out, chunk_idx);
+    println!("Writing next file to {}", path);
+    let mut file = File::create(path)?;
+
+    for instruction in chunk {
+      write!(file, "{}\n", instruction)?;
     }
   }
 

@@ -4,6 +4,7 @@ import os
 import time
 import random
 import torch
+from tqdm import tqdm
 from termcolor import colored
 
 # These commands enumerate the different kind of instruction we can send to each channel.
@@ -206,14 +207,14 @@ def load_training_data(src):
     return data
 
 
-def load_raw_data(src, window_size):
+def load_raw_data(src, minimum_number_of_samples):
 
     sample_data = load_training_data(src)
     sample_data = np.array([command_to_bytes(x) for x in sample_data]).flatten()
 
     # If the sample is less than the window size then ignore it
     # TODO: Left pad again?
-    if len(sample_data) < (window_size * BYTES_PER_ENTRY):
+    if len(sample_data) < (minimum_number_of_samples * BYTES_PER_ENTRY):
         raise Exception("Bad file")
 
     return torch.Tensor(sample_data).long()
@@ -225,50 +226,19 @@ class SampleDataset(torch.utils.data.IterableDataset):
         path,
         window_size,
         start_at_sample=False,
-        max_files=None,
         entire_sample=False,
     ):
         super(SampleDataset).__init__()
-        files = self.training_files(path)
-
-        print("Training files: ")
-        for filename in files:
-            print(filename)
-
-        # Select a random set of files if max_files is set
-        if max_files is not None:
-            random.shuffle(files)
-            files = files[0:max_files]
+        file_datas = torch.load(path)
 
         # Load the files and convert them to the model encoding
         self.start_at_sample = start_at_sample
         self.entire_sample = entire_sample
         self.window_size = window_size
-        self.file_datas = self.load_sample_files(files)
+
+        self.file_datas = file_datas
 
         print("Created the loader")
-
-    def training_files(self, dirp):
-        return [
-            os.path.join(root, fname)
-            for (root, dir_names, file_names) in os.walk(dirp, followlinks=True)
-            for fname in file_names
-        ]
-
-    def load_sample_files(self, files):
-        file_datas = []
-
-        for file in files:
-            print("Loading ", file)
-            try:
-                new_file_data = load_raw_data(file, self.window_size)
-                file_datas.append((file, new_file_data))
-            except Exception as e:
-                print("Caught and ignoring file exception: ", e)
-
-        print("Done loading streams")
-
-        return file_datas
 
     def random_start_offset(self, sample_data):
         def lround(x):
@@ -292,12 +262,15 @@ class SampleDataset(torch.utils.data.IterableDataset):
         else:
             return sample_data[start_idx : start_idx + bytes_per_window_size]
 
+    def __len__(self):
+        return len(self.file_datas)
+
     def __iter__(self):
 
         epoch_data = []
 
         for (name, data) in self.file_datas:
-            for _i in range(20):
+            for _i in range(4):
                 next_step_data = self.random_start_offset(data)
                 epoch_data.append(next_step_data)
 
@@ -305,15 +278,5 @@ class SampleDataset(torch.utils.data.IterableDataset):
 
         print("Iterating over", len(epoch_data), "random samples from the dataset")
 
-        count = 0
-        for data in epoch_data:
-            count += 1
-            if count % int(max(len(epoch_data) / 10, 1)) == 0:
-                print(
-                    colored(
-                        "Epoch: " + str((count / len(epoch_data)) * 100) + "%",
-                        "green",
-                        attrs=[],
-                    )
-                )
-            yield data
+        for data_index in tqdm(range(len(epoch_data))):
+            yield epoch_data[data_index]

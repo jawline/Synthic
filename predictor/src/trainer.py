@@ -11,6 +11,8 @@ from sample import BYTES_PER_ENTRY
 from parameters import EARLY_LOSS_EXIT, EARLY_LOSS_EXIT_LOOKBACK
 from early_exit import EarlyExit
 
+from tqdm import tqdm
+
 scaler = GradScaler()
 
 
@@ -39,7 +41,9 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         count = 0
 
-        for seq in iter(ldr):
+        batch_iterator = iter(ldr)
+
+        for seq in batch_iterator:
             seq = seq.to(device)
 
             # Predict either t+7 or t+1 depending on training mode
@@ -80,7 +84,6 @@ def train(data_loader, validation_loader, load_fn, model_dir, load_path, device)
 
         print("Pre-step LR:", optimizer.param_groups[0]["lr"])
 
-        # Do a ROUND_SZ of training and backprop
         loss = step(data_loader, True)
         assert loss.item() != math.nan
 

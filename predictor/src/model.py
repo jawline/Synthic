@@ -30,6 +30,7 @@ from parameters import (
     REDUCE_LR_PATIENCE,
     REDUCE_LR_FACTOR,
     MODEL_DIM,
+    FEED_FORWARD_DROPOUT,
 )
 
 
@@ -75,7 +76,7 @@ class GameboyNet(nn.Module):
         inp_dim=256,
         dim=MODEL_DIM,
         num_attention_layers=NUM_ATTENTION_LAYERS,
-        layer_dropout=0,
+        layer_dropout=FEED_FORWARD_DROPOUT,
     ):
         super(GameboyNet, self).__init__()
 
@@ -90,9 +91,9 @@ class GameboyNet(nn.Module):
         # First we embed and then add positional encodings to our input
         # TODO: Try to compress the embedding
         self.embed = nn.Embedding(inp_dim, dim)
-        self.positional_encoding = PositionalEncoding(dim)
+        # self.positional_encoding = PositionalEncoding(dim)
 
-        # Build the core of our model by stacking [layers] CausalConvModelLayer instances on top of each other.
+        # Build the core of our model by stacking [layers] on top of each other.
         layers = [make_layer(layer_idx) for layer_idx in range(num_attention_layers)]
         self.layers = nn.Sequential(*layers)
 
@@ -104,8 +105,8 @@ class GameboyNet(nn.Module):
         )
 
     def forward(self, x):
-        x = self.embed(x) * math.sqrt(self.dim)
-        x = self.positional_encoding(x)
+        x = self.embed(x)  # * math.sqrt(self.dim)
+        # x = self.positional_encoding(x)
         x = self.layers(x)
         x = self.finalize(x)
         return x.permute(0, 2, 1)
@@ -170,7 +171,10 @@ def load_model(model, path, device):
     if path != None:
         print("Loading from " + path)
         model.load_state_dict(torch.load(path + ".model"))
+
+        # print("Warning: Hardcoded restart LR to MAX_LR, uncomment line to disable.")
         optimizer.load_state_dict(torch.load(path + ".optimizer"))
+
         # scheduler = torch.load(path + ".scheduler")
     else:
         # Fresh model so start with some adaptive warmup
